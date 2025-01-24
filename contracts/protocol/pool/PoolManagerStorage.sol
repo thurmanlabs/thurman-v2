@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
+pragma solidity ^0.8.24;
+import {Types} from "../libraries/types/Types.sol";
+
+contract PoolManagerStorage {
+    mapping(uint16 poolId => Types.Pool) public _pools;
+}

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-2.0
 pragma solidity ^0.8.24;
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
