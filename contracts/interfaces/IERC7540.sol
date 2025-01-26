@@ -105,7 +105,5 @@ interface IERC7540Vault is IERC4626 {
         external 
         view 
         returns (uint256 claimableAssets);
-
-
 }
 

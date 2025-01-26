@@ -60,6 +60,15 @@ library Types {
         uint256 data;
     }
 
+    struct UserVaultData {
+        /// @dev Shares that can be claimed using `mint()`
+        uint128 maxMint;
+        /// @dev Assets that can be claimed using `withdraw()`
+        uint256 depositPrice;
+        /// @dev Remaining deposit request in assets
+        uint128 pendingDepositRequest;
+    }
+
     struct Pool {
         address vault;
         address underlyingAsset;
