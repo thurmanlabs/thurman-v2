@@ -26,9 +26,10 @@ contract ERC7540Vault is Initializable, UUPSUpgradeable, OwnableUpgradeable, IER
 
     function initialize(
         address _asset,
-        address _share
+        address _share,
+        address _initialOwner
     ) public initializer {
-        __Ownable_init();
+        __Ownable_init(_initialOwner);
         __UUPSUpgradeable_init();
         asset = _asset;
         share = _share;

@@ -3,6 +3,22 @@ pragma solidity ^0.8.24;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface ISToken is IERC20 {
+  event Mint(
+    address indexed caller,
+    address indexed onBehalfOf,
+    uint256 value,
+    uint256 balanceIncrease,
+    uint256 index
+  );
+
+  event Burn(
+    address indexed from,
+    address indexed receiverOfUnderlying,
+    uint256 value,
+    uint256 balanceIncrease,
+    uint256 index
+  );
+  
     /**
    * @notice Mints `amount` sTokens to `user` based on underlying aToken logic
    * @param caller The address performing the mint
@@ -27,5 +43,10 @@ interface ISToken is IERC20 {
    * @param amount The amount being burned
    * @param index The next liquidity index of the reserve
    */
-  function burn(address from, address receiverOfUnderlying, uint256 amount, uint256 index) external;
+  function burn(
+    address from, 
+    address receiverOfUnderlying, 
+    uint256 amount, 
+    uint256 index
+  ) external;
 }
