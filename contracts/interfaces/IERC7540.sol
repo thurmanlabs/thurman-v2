@@ -58,6 +58,19 @@ interface IERC7540Vault is IERC4626 {
      */
     function mint(uint256 shares, address receiver, address controller) external returns (uint256 assets);
 
+        /**
+     * @dev Deposits exactly shares Vault shares to receiver by claiming the Request of the controller.
+     *
+     * - MUST emit the Deposit event.
+     * - controller MUST equal msg.sender unless the controller has approved the msg.sender as an operator.
+     *
+     * @param shares the amount of shares to mint
+     * @param receiver the address that will receive the shares
+     * @param controller the controller who must approve the mint
+     * @return assets the amount of assets taken from sender
+     */
+    function deposit(uint256 shares, address receiver, address controller) external returns (uint256 assets);
+
     /**
      * @dev Transfers assets from sender into the Vault and submits a Request for asynchronous deposit.
      *

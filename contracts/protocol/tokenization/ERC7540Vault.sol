@@ -1,21 +1,24 @@
 // SPDX-License-Identifier: GPL-2.0
 pragma solidity ^0.8.24;
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {IERC7540Vault} from "../../interfaces/IERC7540.sol";
+import {IPool} from "../../interfaces/IPool.sol";
 import {Types} from "../libraries/types/Types.sol";
 import {Validation} from "../libraries/services/Validation.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {WadRayMath} from "../libraries/math/WadRayMath.sol";
 
 
-contract ERC7540Vault is Initializable, UUPSUpgradeable, OwnableUpgradeable, IERC7540Vault {
+contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
+    using WadRayMath for uint256;
+    using SafeCast for uint256;
+
     mapping(address => mapping(address => bool)) public isOperator;
     /// @dev Requests for Thurman pool are non-fungible and all have ID = 0
     uint256 private constant REQUEST_ID = 0;
 
-    address public asset;
+    address public aavePool;
     address public share;
     mapping(address => Types.UserVaultData) public userVaultData;
     
@@ -27,15 +30,12 @@ contract ERC7540Vault is Initializable, UUPSUpgradeable, OwnableUpgradeable, IER
     function initialize(
         address _asset,
         address _share,
-        address _initialOwner
-    ) public initializer {
-        __Ownable_init(_initialOwner);
-        __UUPSUpgradeable_init();
-        asset = _asset;
+        address _aavePool
+    ) external initializer {
+        __ERC4626_init(IERC20(_asset));
         share = _share;
+        aavePool = _aavePool;
     }
-
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
     
     // --- ERC-7540 methods ---
     function setOperator(address operator, bool approved) public virtual returns (bool) {
@@ -48,8 +48,8 @@ contract ERC7540Vault is Initializable, UUPSUpgradeable, OwnableUpgradeable, IER
     function requestDeposit(uint256 assets, address controller, address owner) external returns (uint256 requestId) {
         Validation.validateController(controller, isOperator);
         Validation.validateRequestDeposit(address(this), assets);
-        IERC20(asset).transferFrom(msg.sender, share, assets);
-        userVaultData[owner].pendingDepositRequest += SafeCast.toUint128(assets);
+        IERC20(asset()).transferFrom(msg.sender, share, assets);
+        userVaultData[owner].pendingDepositRequest += assets.toUint128();
         emit DepositRequest(controller, owner, REQUEST_ID, msg.sender, assets);
         return REQUEST_ID;
     }
@@ -57,15 +57,22 @@ contract ERC7540Vault is Initializable, UUPSUpgradeable, OwnableUpgradeable, IER
     function mint(uint256 shares, address receiver, address controller) external returns (uint256 assets) {
         Validation.validateController(controller, isOperator);
         IERC20(share).transferFrom(address(this), receiver, shares);
-        // TODO: Implement calculation of assets
-        return shares;
+        uint256 index = IPool(aavePool).getReserveData(asset()).liquidityIndex;
+        return shares.rayDiv(index);
     }
 
-    function pendingDepositRequest(address owner) external view returns (uint256) {
-        return userVaultData[owner].pendingDepositRequest;
+    function deposit(uint256 shares, address receiver, address controller) external returns (uint256 assets) {
+        Validation.validateController(controller, isOperator);
+        IERC20(share).transferFrom(address(this), receiver, shares);
+        uint256 index = IPool(aavePool).getReserveData(asset()).liquidityIndex;
+        return shares.rayDiv(index);
     }
 
-    function claimableDepositRequest(address owner) external view returns (uint256) {
-        return userVaultData[owner].maxMint;
+    function pendingDepositRequest(uint256, address controller) external view returns (uint256) {
+        return userVaultData[controller].pendingDepositRequest;
+    }
+
+    function claimableDepositRequest(uint256, address controller) external view returns (uint256) {
+        return userVaultData[controller].maxMint;
     }
 }

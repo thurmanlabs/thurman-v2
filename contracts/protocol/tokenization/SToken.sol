@@ -12,8 +12,9 @@ import {WadRayMath} from "../libraries/math/WadRayMath.sol";
 contract SToken is ISToken, ERC20Upgradeable {
     using WadRayMath for uint256;
     using SafeCast for uint256;
+    
     address public underlyingAsset;
-    address public pool;
+    address public aavePool;
     address public aToken;
 
     // User index snapshots
@@ -26,16 +27,16 @@ contract SToken is ISToken, ERC20Upgradeable {
 
     function initialize(
         address _underlyingAsset,
-        address _pool,
+        address _aavePool,
         string memory _name,
         string memory _symbol
     ) external initializer {
         __ERC20_init(_name, _symbol);
-        require(_pool != address(0), "SToken/invalid-pool-address");
+        require(_aavePool != address(0), "SToken/invalid-pool-address");
         require(_underlyingAsset != address(0), "SToken/invalid-asset-address");
         underlyingAsset = _underlyingAsset;
-        pool = _pool;
-        Types.ReserveData memory reserveData = IPool(_pool).getReserveData(_underlyingAsset);
+        aavePool = _aavePool;
+        Types.ReserveData memory reserveData = IPool(_aavePool).getReserveData(_underlyingAsset);
         require(reserveData.aTokenAddress != address(0), "SToken/asset-not-supported-in-pool");
         aToken = reserveData.aTokenAddress;
     }
@@ -90,7 +91,7 @@ contract SToken is ISToken, ERC20Upgradeable {
     view
     override (ERC20Upgradeable, IERC20)
     returns (uint256) {
-        uint256 index = IPool(pool).getReserveData(underlyingAsset).liquidityIndex;
+        uint256 index = IPool(aavePool).getReserveData(underlyingAsset).liquidityIndex;
         return super.balanceOf(user).rayMul(index);
     }
 
@@ -99,10 +100,10 @@ contract SToken is ISToken, ERC20Upgradeable {
         view
         override (ERC20Upgradeable, IERC20)
         returns (uint256) {
-            return super.totalSupply().rayMul(IPool(pool).getReserveData(underlyingAsset).liquidityIndex);
+            return super.totalSupply().rayMul(IPool(aavePool).getReserveData(underlyingAsset).liquidityIndex);
         }
 
     function getReserveData() public view returns (Types.ReserveData memory) {
-        return IPool(pool).getReserveData(underlyingAsset);
+        return IPool(aavePool).getReserveData(underlyingAsset);
     }
 }
