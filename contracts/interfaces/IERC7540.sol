@@ -87,6 +87,16 @@ interface IERC7540Vault is IERC4626 {
      */
     function requestDeposit(uint256 assets, address controller, address owner) external returns (uint256 requestId);
 
+
+    /**
+     * @dev Fulfills a deposit request for a given pool.
+     *
+     * @param assets the amount of deposit assets to transfer from owner
+     * @param shares the amount of shares to mint
+     * @param receiver the address that will receive the shares
+     */
+    function fulfillDepositRequest(uint256 assets, uint256 shares, address receiver) external returns (uint256 requestId);
+
     /**
      * @dev Returns the amount of requested assets in Pending state.
      *

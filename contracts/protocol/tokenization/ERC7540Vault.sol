@@ -4,6 +4,7 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {IERC7540Vault} from "../../interfaces/IERC7540.sol";
+import {ISToken} from "../../interfaces/ISToken.sol";
 import {IPool} from "../../interfaces/IPool.sol";
 import {Types} from "../libraries/types/Types.sol";
 import {Validation} from "../libraries/services/Validation.sol";
@@ -14,10 +15,16 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     using WadRayMath for uint256;
     using SafeCast for uint256;
 
+    modifier onlyPoolManager() {
+        require(msg.sender == poolManager, "ERC7540Vault/only-pool-manager");
+        _;
+    }
+
     mapping(address => mapping(address => bool)) public isOperator;
     /// @dev Requests for Thurman pool are non-fungible and all have ID = 0
     uint256 private constant REQUEST_ID = 0;
 
+    address public poolManager;
     address public aavePool;
     address public share;
     mapping(address => Types.UserVaultData) public userVaultData;
@@ -30,11 +37,13 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     function initialize(
         address _asset,
         address _share,
-        address _aavePool
+        address _aavePool,
+        address _poolManager
     ) external initializer {
         __ERC4626_init(IERC20(_asset));
         share = _share;
         aavePool = _aavePool;
+        poolManager = _poolManager;
     }
     
     // --- ERC-7540 methods ---
@@ -51,6 +60,21 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         IERC20(asset()).transferFrom(msg.sender, share, assets);
         userVaultData[owner].pendingDepositRequest += assets.toUint128();
         emit DepositRequest(controller, owner, REQUEST_ID, msg.sender, assets);
+        return REQUEST_ID;
+    }
+
+    function fulfillDepositRequest(uint256 assets, uint256 shares, address receiver) external onlyPoolManager returns (uint256 requestId) {
+        Types.UserVaultData memory userVault = userVaultData[receiver];
+        Validation.validateFulfilledDepositRequest(userVault);
+        userVault.maxMint = userVault.maxMint + shares.toUint128();
+
+        userVault.pendingDepositRequest = userVault.pendingDepositRequest > assets ? userVault.pendingDepositRequest - assets.toUint128() : 0;
+        if (userVault.pendingDepositRequest == 0) delete userVault.pendingDepositRequest;
+
+        ISToken sToken = ISToken(share);
+        uint256 index = IPool(aavePool).getReserveData(asset()).liquidityIndex;
+        sToken.mint(msg.sender, address(this), assets, index);
+        emit DepositClaimable(receiver, REQUEST_ID, assets, shares);
         return REQUEST_ID;
     }
     
