@@ -65,13 +65,15 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
 
     function fulfillDepositRequest(uint256 assets, uint256 shares, address receiver) external onlyPoolManager returns (uint256 requestId) {
         Types.UserVaultData memory userVault = userVaultData[receiver];
-        Validation.validateFulfilledDepositRequest(userVault);
+        Validation.validateFulfillDepositRequest(userVault);
         userVault.maxMint = userVault.maxMint + shares.toUint128();
-
-        userVault.pendingDepositRequest = userVault.pendingDepositRequest > assets ? userVault.pendingDepositRequest - assets.toUint128() : 0;
+        userVault.pendingDepositRequest = 
+            userVault.pendingDepositRequest > assets ? userVault.pendingDepositRequest - assets.toUint128() : 0;
+        
         if (userVault.pendingDepositRequest == 0) delete userVault.pendingDepositRequest;
 
         ISToken sToken = ISToken(share);
+        sToken.aaveSupply(assets, address(this));
         uint256 index = IPool(aavePool).getReserveData(asset()).liquidityIndex;
         sToken.mint(msg.sender, address(this), assets, index);
         emit DepositClaimable(receiver, REQUEST_ID, assets, shares);
@@ -98,5 +100,61 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
 
     function claimableDepositRequest(uint256, address controller) external view returns (uint256) {
         return userVaultData[controller].maxMint;
+    }
+
+    function requestRedeem(
+        uint256 shares, 
+        address controller, 
+        address owner
+    ) external returns (uint256 requestId) {
+        Validation.validateController(controller, isOperator);
+        Validation.validateRequestRedeem(share, shares);
+        ISToken sToken = ISToken(share);
+        sToken.transferFrom(owner, address(this), shares);
+        userVaultData[owner].pendingRedeemRequest += shares.toUint128();
+        emit RedeemRequest(controller, owner, REQUEST_ID, msg.sender, shares);
+        return REQUEST_ID;
+    }
+
+    function fulfillRedeemRequest(
+        uint256 shares, 
+        uint256 assets, 
+        address receiver
+    ) external onlyPoolManager returns (uint256 requestId) {
+        Types.UserVaultData memory userVault = userVaultData[receiver];
+        Validation.validateFulfillRedeemRequest(userVault);
+        userVault.maxWithdraw = userVault.maxWithdraw + assets.toUint128();
+        userVault.pendingRedeemRequest = 
+            userVault.pendingRedeemRequest > shares ? userVault.pendingRedeemRequest - shares.toUint128() : 0;
+        
+        if (userVault.pendingRedeemRequest == 0) delete userVault.pendingRedeemRequest;
+
+        ISToken sToken = ISToken(share);
+        sToken.aaveWithdraw(assets, address(this));
+        sToken.burn(address(this), receiver, shares, 0);
+        emit RedeemClaimable(receiver, REQUEST_ID, assets, shares);
+        return REQUEST_ID;
+    }
+
+    function redeem(uint256 shares, address controller, address owner) 
+        public 
+        override(ERC4626Upgradeable, IERC7540Vault) 
+        returns (uint256 assets)
+    {
+        Types.UserVaultData memory userVault = userVaultData[owner];
+        Validation.validateController(controller, isOperator);
+        Validation.validateRedeem(userVault, shares);
+        userVault.maxWithdraw = userVault.maxWithdraw > shares ? userVault.maxWithdraw - shares.toUint128() : 0;
+        uint256 index = IPool(aavePool).getReserveData(asset()).liquidityIndex;
+        IERC20(asset()).transferFrom(owner, address(this), shares.rayDiv(index));
+        return shares.rayDiv(index);
+    }
+
+    function pendingRedeemRequest(uint256, address controller) external view returns (uint256) {
+        return userVaultData[controller].pendingRedeemRequest;
+    }
+
+    function claimableRedeemRequest(uint256, address controller) external view returns (uint256) {
+        return userVaultData[controller].maxWithdraw;
     }
 }

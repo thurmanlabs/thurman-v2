@@ -16,6 +16,8 @@ interface IPool {
    */
   function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
 
+  function withdraw(address asset, uint256 amount, address receiver, uint16 referralCode) external;
+
   /**
    * @notice Returns the state and configuration of the reserve
    * @param asset The address of the underlying asset of the reserve

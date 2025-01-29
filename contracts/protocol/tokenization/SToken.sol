@@ -12,7 +12,7 @@ import {WadRayMath} from "../libraries/math/WadRayMath.sol";
 contract SToken is ISToken, ERC20Upgradeable {
     using WadRayMath for uint256;
     using SafeCast for uint256;
-    
+
     address public underlyingAsset;
     address public aavePool;
     address public aToken;
@@ -84,6 +84,14 @@ contract SToken is ISToken, ERC20Upgradeable {
         emit Transfer(from, address(0), amountToBurn);
         emit Burn(from, receiverOfUnderlying, amountToBurn, balanceIncrease, index);
     }
+  }
+
+  function aaveSupply(uint256 amount, address onBehalfOf) external {
+    IPool(aavePool).supply(underlyingAsset, amount, onBehalfOf, 0);
+  }
+
+  function aaveWithdraw(uint256 amount, address receiver) external {
+    IPool(aavePool).withdraw(underlyingAsset, amount, receiver, 0);
   }
 
   function balanceOf(address user)

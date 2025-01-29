@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 pragma solidity ^0.8.24;
-import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
+
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
+import {ISToken} from "../../../interfaces/ISToken.sol";
 import {Types} from "../types/Types.sol";
 
 library Validation {
@@ -24,9 +26,30 @@ library Validation {
         require(assets <= IERC20(vault.asset()).balanceOf(msg.sender), "ERC7540Vault/insufficient-assets");
     }
 
-    function validateFulfilledDepositRequest(
+    function validateFulfillDepositRequest(
         Types.UserVaultData memory userVaultData
     ) internal pure {
         require(userVaultData.pendingDepositRequest != 0, "ERC7540Vault/no-pending-deposit-request");
+    }
+
+    function validateRequestRedeem(
+        address sToken,
+        uint256 shares
+    ) internal view {
+        require(shares > 0, "ERC7540Vault/invalid-shares");
+        require(shares <= ISToken(sToken).balanceOf(msg.sender), "ERC7540Vault/insufficient-shares");
+    }
+
+    function validateFulfillRedeemRequest(
+        Types.UserVaultData memory userVaultData
+    ) internal pure {
+        require(userVaultData.pendingRedeemRequest != 0, "ERC7540Vault/no-pending-redeem-request");
+    }
+
+    function validateRedeem(
+        Types.UserVaultData memory userVaultData,
+        uint256 shares
+    ) internal pure {
+        require(userVaultData.maxWithdraw >= shares, "ERC7540Vault/insufficient-max-withdraw");
     }
 }

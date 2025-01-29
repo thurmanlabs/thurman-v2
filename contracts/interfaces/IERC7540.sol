@@ -27,6 +27,21 @@ interface IERC7540Vault is IERC4626 {
         uint256 shares
     );
 
+    event RedeemRequest(
+        address indexed controller, 
+        address indexed owner, 
+        uint256 indexed requestId, 
+        address sender, 
+        uint256 shares
+    );
+
+    event RedeemClaimable(
+        address indexed controller, 
+        uint256 indexed requestId, 
+        uint256 assets, 
+        uint256 shares
+    );
+
     /**
      * @dev Sets or removes an operator for the caller.
      *
@@ -128,5 +143,65 @@ interface IERC7540Vault is IERC4626 {
         external 
         view 
         returns (uint256 claimableAssets);
+
+    /**
+     * @dev Assumes control of shares from sender into the Vault and submits a Request for asynchronous redeem.
+     *
+     * - MUST support a redeem Request flow where the control of shares is taken from sender directly
+     *   where msg.sender has ERC-20 approval over the shares of owner.
+     * - MUST revert if all of shares cannot be requested for redeem.
+     *
+     * @param shares the amount of shares to be redeemed to transfer from owner
+     * @param controller the controller of the request who will be able to operate the request
+     * @param owner the source of the shares to be redeemed
+     *
+     * NOTE: most implementations will require pre-approval of the Vault with the Vault's share token.
+     */
+    function requestRedeem(
+        uint256 shares, 
+        address controller, 
+        address owner
+    ) external returns (uint256 requestId);
+
+    /**
+     * @dev Fulfills a redeem request for a given pool.
+     *
+     * @param shares the amount of shares to be redeemed
+     * @param assets the amount of assets to be transferred to receiver
+     * @param receiver the address that will receive the assets
+     */
+    function fulfillRedeemRequest(
+        uint256 shares, 
+        uint256 assets, 
+        address receiver
+    ) external returns (uint256 requestId);
+
+    /**
+     * @dev Burns exactly shares from owner and sends assets of underlying tokens to receiver.
+     *
+     * @param shares the amount of shares to be redeemed to transfer from owner
+     * @param controller the controller of the request who will be able to operate the request
+     * @param owner the source of the shares to be redeemed
+     * @return assets the amount of assets to be transferred to receiver
+     */
+    function redeem(uint256 shares, address controller, address owner) external returns (uint256 assets);
+
+    /**
+     * @dev Returns the amount of requested assets in Pending state.
+     *
+     * @param requestId the ID of the redeem request
+     * @param controller the controller address that must approve the redeem
+     * @return pendingAssets amount of assets pending approval
+     */
+    function pendingRedeemRequest(uint256 requestId, address controller) external view returns (uint256 pendingAssets);
+
+    /**
+     * @dev Returns the amount of requested assets in Claimable state for the controller to redeem.
+     *
+     * @param requestId the ID of the redeem request
+     * @param controller the controller address that approved the redeem
+     * @return claimableAssets amount of assets approved for redeem
+     */
+    function claimableRedeemRequest(uint256 requestId, address controller) external view returns (uint256 claimableAssets);
 }
 

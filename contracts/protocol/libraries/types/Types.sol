@@ -64,9 +64,11 @@ library Types {
         /// @dev Shares that can be claimed using `mint()`
         uint128 maxMint;
         /// @dev Assets that can be claimed using `withdraw()`
-        uint256 depositPrice;
+        uint128 maxWithdraw;
         /// @dev Remaining deposit request in assets
         uint128 pendingDepositRequest;
+        /// @dev Remaining redeem request in shares
+        uint128 pendingRedeemRequest;
     }
 
     struct Pool {
