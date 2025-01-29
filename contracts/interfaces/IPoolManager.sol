@@ -63,4 +63,10 @@ interface IPoolManager {
      * @param receiver the address that will receive the assets
      */
     function redeem(uint16 poolId, uint256 shares, address receiver) external;
+
+    /**
+    * @dev Adds a new pool to the pool manager
+    * @param vault The address of the vault to add
+    */
+    function addPool(address vault) external;
 }

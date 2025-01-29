@@ -6,7 +6,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {Deposit} from "../libraries/services/Deposit.sol";
 import {PoolManagerStorage} from "./PoolManagerStorage.sol";
 import {IPoolManager} from "../../interfaces/IPoolManager.sol";
-
+import {Pool} from "../libraries/services/Pool.sol";
 contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, IPoolManager {
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -16,6 +16,13 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
     
     function initialize() external virtual initializer {
         __Ownable_init(msg.sender);
+        _poolCount = 0;
+    }
+
+    function addPool(address vault) external onlyOwner {
+        if (Pool.addPool(_pools, vault, _poolCount)) {
+            _poolCount++;
+        }
     }
 
     function deposit(uint16 poolId, uint256 assets, address receiver) external {

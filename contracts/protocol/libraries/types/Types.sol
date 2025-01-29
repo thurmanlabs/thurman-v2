@@ -73,9 +73,5 @@ library Types {
 
     struct Pool {
         address vault;
-        address underlyingAsset;
-        address aToken;
-        address sToken;
-        address aavePool;
     }
 }
