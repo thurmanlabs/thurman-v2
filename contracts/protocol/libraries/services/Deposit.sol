@@ -38,4 +38,39 @@ library Deposit {
         IERC7540Vault vault = IERC7540Vault(pool);
         vault.requestDeposit(assets, msg.sender, owner);
     }
+
+    function requestRedeem(
+        mapping(uint16 => address) storage pools,
+        uint16 poolId,
+        uint256 shares,
+        address controller,
+        address owner
+    ) internal {
+        address pool = pools[poolId];
+        IERC7540Vault vault = IERC7540Vault(pool);
+        vault.requestRedeem(shares, controller, owner);
+    }
+
+    function fulfillRedeem(
+        mapping(uint16 => address) storage pools,
+        uint16 poolId,
+        uint256 shares,
+        uint256 assets,
+        address receiver
+    ) internal {
+        address pool = pools[poolId];
+        IERC7540Vault vault = IERC7540Vault(pool);
+        vault.fulfillRedeemRequest(shares, assets, receiver);
+    }
+
+    function redeem(
+        mapping(uint16 => address) storage pools,
+        uint16 poolId,
+        uint256 shares,
+        address receiver
+    ) internal {
+        address pool = pools[poolId];
+        IERC7540Vault vault = IERC7540Vault(pool);
+        vault.redeem(shares, msg.sender, receiver);
+    }
 }
