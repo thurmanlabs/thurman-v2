@@ -9,7 +9,7 @@ import "hardhat-gas-reporter"
 import "dotenv/config";
 
 const POLYGON_MAINNET_RPC_URL = process.env.POLYGON_MAINNET_RPC_URL || "";
-const POLYGON_MUMBAI_RPC_URL = process.env.POLYGON_MUMBAI_RPC_URL || "";
+const POLYGON_AMOY_RPC_URL = process.env.POLYGON_AMOY_RPC_URL || "";
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x";
 const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY || "";
 
@@ -26,16 +26,20 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       chainId: 31337,
+      forking: {
+        url: POLYGON_MAINNET_RPC_URL,
+        blockNumber: 67312309
+      },
     },
     polygon: {
       url: POLYGON_MAINNET_RPC_URL,
       accounts: [PRIVATE_KEY],
       chainId: 137,
     },
-    mumbai: {
-      url: POLYGON_MUMBAI_RPC_URL,
+    amoy: {
+      url: POLYGON_AMOY_RPC_URL,
       accounts: [PRIVATE_KEY],
-      chainId: 80001,
+      chainId: 421613,
     },
   },
   gasReporter: {
@@ -47,7 +51,7 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: {
       polygon: POLYGONSCAN_API_KEY,
-      polygonMumbai: POLYGONSCAN_API_KEY,
+      polygonAmoy: POLYGONSCAN_API_KEY,
     },
   },
   namedAccounts: {

@@ -13,17 +13,19 @@ library Validation {
 
     function validateController(
         address controller, 
+        address owner,
         mapping(address => mapping(address => bool)) storage isOperator
     ) internal view {
-        require(controller == msg.sender || isOperator[msg.sender][controller], "ERC7540Vault/invalid-controller");
+        require(controller == owner || isOperator[owner][controller], "ERC7540Vault/invalid-controller");
     }
 
     function validateRequestDeposit(
         address vaultAddress,
+        address owner,
         uint256 assets) internal view {
         IERC7540Vault vault = IERC7540Vault(vaultAddress);
         require(assets > 0, "ERC7540Vault/invalid-assets");
-        require(assets <= IERC20(vault.asset()).balanceOf(msg.sender), "ERC7540Vault/insufficient-assets");
+        require(assets <= IERC20(vault.asset()).balanceOf(owner), "ERC7540Vault/insufficient-assets");
     }
 
     function validateFulfillDepositRequest(

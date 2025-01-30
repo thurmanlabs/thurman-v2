@@ -15,7 +15,12 @@ contract SToken is ISToken, ERC20Upgradeable {
 
     address public underlyingAsset;
     address public aavePool;
-    address public aToken;
+    address public vault;
+
+    modifier onlyVault() {
+        require(msg.sender == vault, "SToken/only-vault");
+        _;
+    }
 
     // User index snapshots
     mapping(address => uint256) public userIndexes;
@@ -36,9 +41,6 @@ contract SToken is ISToken, ERC20Upgradeable {
         require(_underlyingAsset != address(0), "SToken/invalid-asset-address");
         underlyingAsset = _underlyingAsset;
         aavePool = _aavePool;
-        Types.ReserveData memory reserveData = IPool(_aavePool).getReserveData(_underlyingAsset);
-        require(reserveData.aTokenAddress != address(0), "SToken/asset-not-supported-in-pool");
-        aToken = reserveData.aTokenAddress;
     }
 
     function mint(
@@ -46,7 +48,7 @@ contract SToken is ISToken, ERC20Upgradeable {
         address onBehalfOf,
         uint256 amount,
         uint256 index
-    ) external returns (bool) {
+    ) external onlyVault returns (bool) {
         uint256 amountScaled = amount.rayDiv(index);
         require(amountScaled > 0, "SToken/invalid-mint-amount");
         uint256 scaledBalance = super.balanceOf(onBehalfOf);
@@ -66,7 +68,7 @@ contract SToken is ISToken, ERC20Upgradeable {
     address receiverOfUnderlying,
     uint256 amount,
     uint256 index
-  ) external {
+  ) external onlyVault {
     uint256 amountScaled = amount.rayDiv(index);
     require(amountScaled > 0, "SToken/invalid-burn-amount");
     uint256 scaledBalance = super.balanceOf(from);
@@ -86,11 +88,11 @@ contract SToken is ISToken, ERC20Upgradeable {
     }
   }
 
-  function aaveSupply(uint256 amount, address onBehalfOf) external {
+  function aaveSupply(uint256 amount, address onBehalfOf) external onlyVault {
     IPool(aavePool).supply(underlyingAsset, amount, onBehalfOf, 0);
   }
 
-  function aaveWithdraw(uint256 amount, address receiver) external {
+  function aaveWithdraw(uint256 amount, address receiver) external onlyVault {
     IPool(aavePool).withdraw(underlyingAsset, amount, receiver, 0);
   }
 

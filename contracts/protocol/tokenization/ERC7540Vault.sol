@@ -55,9 +55,9 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     }
 
     function requestDeposit(uint256 assets, address controller, address owner) external returns (uint256 requestId) {
-        Validation.validateController(controller, isOperator);
-        Validation.validateRequestDeposit(address(this), assets);
-        IERC20(asset()).transferFrom(msg.sender, share, assets);
+        Validation.validateController(controller, owner, isOperator);
+        Validation.validateRequestDeposit(address(this), owner, assets);
+        IERC20(asset()).transferFrom(owner, share, assets);
         userVaultData[owner].pendingDepositRequest += assets.toUint128();
         emit DepositRequest(controller, owner, REQUEST_ID, msg.sender, assets);
         return REQUEST_ID;
@@ -81,14 +81,14 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     }
     
     function mint(uint256 shares, address receiver, address controller) external returns (uint256 assets) {
-        Validation.validateController(controller, isOperator);
+        Validation.validateController(controller, receiver, isOperator);
         IERC20(share).transferFrom(address(this), receiver, shares);
         uint256 index = IPool(aavePool).getReserveData(asset()).liquidityIndex;
         return shares.rayDiv(index);
     }
 
     function deposit(uint256 shares, address receiver, address controller) external returns (uint256 assets) {
-        Validation.validateController(controller, isOperator);
+        Validation.validateController(controller, receiver, isOperator);
         IERC20(share).transferFrom(address(this), receiver, shares);
         uint256 index = IPool(aavePool).getReserveData(asset()).liquidityIndex;
         return shares.rayDiv(index);
@@ -107,7 +107,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         address controller, 
         address owner
     ) external returns (uint256 requestId) {
-        Validation.validateController(controller, isOperator);
+        Validation.validateController(controller, owner, isOperator);
         Validation.validateRequestRedeem(share, shares);
         ISToken sToken = ISToken(share);
         sToken.transferFrom(owner, address(this), shares);
@@ -142,7 +142,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         returns (uint256 assets)
     {
         Types.UserVaultData memory userVault = userVaultData[owner];
-        Validation.validateController(controller, isOperator);
+        Validation.validateController(controller, owner, isOperator);
         Validation.validateRedeem(userVault, shares);
         userVault.maxWithdraw = userVault.maxWithdraw > shares ? userVault.maxWithdraw - shares.toUint128() : 0;
         uint256 index = IPool(aavePool).getReserveData(asset()).liquidityIndex;
