@@ -50,9 +50,5 @@ interface ISToken is IERC20 {
     uint256 index
   ) external;
 
-  function aaveSupply(uint256 amount, address onBehalfOf) external;
-
-  function aaveWithdraw(uint256 amount, address receiver) external;
-
   function setVault(uint16 poolId) external;
 }

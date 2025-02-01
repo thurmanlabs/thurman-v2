@@ -92,14 +92,6 @@ contract SToken is ISToken, ERC20Upgradeable {
     }
   }
 
-  function aaveSupply(uint256 amount, address onBehalfOf) external onlyAuthorized {
-    IPool(aavePool).supply(underlyingAsset, amount, onBehalfOf, 0);
-  }
-
-  function aaveWithdraw(uint256 amount, address receiver) external onlyAuthorized {
-    IPool(aavePool).withdraw(underlyingAsset, amount, receiver);
-  }
-
   function balanceOf(address user)
     public
     view
