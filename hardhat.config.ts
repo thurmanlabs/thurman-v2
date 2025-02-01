@@ -10,6 +10,7 @@ import "dotenv/config";
 
 const POLYGON_MAINNET_RPC_URL = process.env.POLYGON_MAINNET_RPC_URL || "";
 const POLYGON_AMOY_RPC_URL = process.env.POLYGON_AMOY_RPC_URL || "";
+const MAINNET_PRIVATE_KEY = process.env.MAINNET_PRIVATE_KEY || "";
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x";
 const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY || "";
 
@@ -33,7 +34,7 @@ const config: HardhatUserConfig = {
     },
     polygon: {
       url: POLYGON_MAINNET_RPC_URL,
-      accounts: [PRIVATE_KEY],
+      accounts: [MAINNET_PRIVATE_KEY],
       chainId: 137,
     },
     amoy: {
