@@ -6,7 +6,11 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {Deposit} from "../libraries/services/Deposit.sol";
 import {PoolManagerStorage} from "./PoolManagerStorage.sol";
 import {IPoolManager} from "../../interfaces/IPoolManager.sol";
+import {IERC7540Vault} from "../../interfaces/IERC7540.sol";
+import {ISToken} from "../../interfaces/ISToken.sol";
 import {Pool} from "../libraries/services/Pool.sol";
+import {Types} from "../libraries/types/Types.sol";
+
 contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, IPoolManager {
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -29,23 +33,39 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         Deposit.deposit(_pools, poolId, assets, receiver);
     }
 
-    function fulfillDeposit(uint16 poolId, uint256 assets, uint256 shares, address receiver) external {
-        Deposit.fulfillDeposit(_pools, poolId, assets, shares, receiver); 
+    function fulfillDeposit(uint16 poolId, uint256 assets, address receiver) external onlyOwner {
+        Deposit.fulfillDeposit(_pools, poolId, assets, receiver);
     }
 
-    function redeem(uint16 poolId, uint256 shares, address receiver) external {
-        Deposit.redeem(_pools, poolId, shares, receiver);
+    function redeem(uint16 poolId, uint256 assets, address receiver) external {
+        Deposit.redeem(_pools, poolId, assets, receiver);
     }
 
-    function requestRedeem(uint16 poolId, uint256 shares, address controller, address owner) external {
-        Deposit.requestRedeem(_pools, poolId, shares, controller, owner);
+    function requestRedeem(uint16 poolId, uint256 assets, address controller, address owner) external {
+        Deposit.requestRedeem(_pools, poolId, assets, controller, owner);
     }
 
-    function fulfillRedeem(uint16 poolId, uint256 shares, uint256 assets, address receiver) external {
-        Deposit.fulfillRedeem(_pools, poolId, shares, assets, receiver);
+    function fulfillRedeem(uint16 poolId, uint256 assets, address receiver) external onlyOwner {
+        Deposit.fulfillRedeem(_pools, poolId, assets, receiver);
     }
 
     function requestDeposit(uint16 poolId, uint256 assets) external {
         Deposit.requestDeposit(_pools, poolId, assets, msg.sender, msg.sender);
     }
+
+    function isOwner(address _address) external view returns (bool) {
+        return owner() == _address;
+    }
+
+    function getPool(uint16 poolId) external view returns (Types.Pool memory) {
+        return _pools[poolId];
+    }
+
+    function connectSTokentoVault(uint16 poolId) external {
+        Types.Pool memory pool = _pools[poolId];
+        address sToken = IERC7540Vault(pool.vault).getShare();
+        ISToken(sToken).setVault(poolId);
+    }
+
+
 }

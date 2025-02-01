@@ -16,7 +16,14 @@ interface IPool {
    */
   function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
 
-  function withdraw(address asset, uint256 amount, address receiver, uint16 referralCode) external;
+  /**
+   * @notice Withdraws an `amount` of underlying asset from the reserve, burning the equivalent aTokens owned
+   * E.g. User has 100 aUSDC, burns 100 aUSDC and gets 100 USDC
+   * @param asset The address of the underlying asset to withdraw
+   * @param amount The amount to be withdrawn
+   * @param receiver The address that will receive the underlying, same as msg.sender if the user
+  */
+  function withdraw(address asset, uint256 amount, address receiver) external;
 
   /**
    * @notice Returns the state and configuration of the reserve

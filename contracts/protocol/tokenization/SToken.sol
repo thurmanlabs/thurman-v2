@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {IPoolManager} from "../../interfaces/IPoolManager.sol";
 import {ISToken} from "../../interfaces/ISToken.sol";
 import {IPool} from "../../interfaces/IPool.sol";
 import {Types} from "../libraries/types/Types.sol";
@@ -16,9 +17,10 @@ contract SToken is ISToken, ERC20Upgradeable {
     address public underlyingAsset;
     address public aavePool;
     address public vault;
+    address public poolManager;
 
-    modifier onlyVault() {
-        require(msg.sender == vault, "SToken/only-vault");
+    modifier onlyAuthorized() {
+        require(_msgSender() == vault || _msgSender() == poolManager, "SToken/only-authorized");
         _;
     }
 
@@ -33,6 +35,7 @@ contract SToken is ISToken, ERC20Upgradeable {
     function initialize(
         address _underlyingAsset,
         address _aavePool,
+        address _poolManager,
         string memory _name,
         string memory _symbol
     ) external initializer {
@@ -41,6 +44,7 @@ contract SToken is ISToken, ERC20Upgradeable {
         require(_underlyingAsset != address(0), "SToken/invalid-asset-address");
         underlyingAsset = _underlyingAsset;
         aavePool = _aavePool;
+        poolManager = _poolManager;
     }
 
     function mint(
@@ -48,7 +52,7 @@ contract SToken is ISToken, ERC20Upgradeable {
         address onBehalfOf,
         uint256 amount,
         uint256 index
-    ) external onlyVault returns (bool) {
+    ) external onlyAuthorized returns (bool) {
         uint256 amountScaled = amount.rayDiv(index);
         require(amountScaled > 0, "SToken/invalid-mint-amount");
         uint256 scaledBalance = super.balanceOf(onBehalfOf);
@@ -68,7 +72,7 @@ contract SToken is ISToken, ERC20Upgradeable {
     address receiverOfUnderlying,
     uint256 amount,
     uint256 index
-  ) external onlyVault {
+  ) external onlyAuthorized {
     uint256 amountScaled = amount.rayDiv(index);
     require(amountScaled > 0, "SToken/invalid-burn-amount");
     uint256 scaledBalance = super.balanceOf(from);
@@ -88,12 +92,12 @@ contract SToken is ISToken, ERC20Upgradeable {
     }
   }
 
-  function aaveSupply(uint256 amount, address onBehalfOf) external onlyVault {
+  function aaveSupply(uint256 amount, address onBehalfOf) external onlyAuthorized {
     IPool(aavePool).supply(underlyingAsset, amount, onBehalfOf, 0);
   }
 
-  function aaveWithdraw(uint256 amount, address receiver) external onlyVault {
-    IPool(aavePool).withdraw(underlyingAsset, amount, receiver, 0);
+  function aaveWithdraw(uint256 amount, address receiver) external onlyAuthorized {
+    IPool(aavePool).withdraw(underlyingAsset, amount, receiver);
   }
 
   function balanceOf(address user)
@@ -115,5 +119,10 @@ contract SToken is ISToken, ERC20Upgradeable {
 
     function getReserveData() public view returns (Types.ReserveData memory) {
         return IPool(aavePool).getReserveData(underlyingAsset);
+    }
+
+    function setVault(uint16 poolId) external onlyAuthorized {
+        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+        vault = pool.vault;
     }
 }

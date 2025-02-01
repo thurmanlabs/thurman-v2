@@ -20,12 +20,11 @@ library Deposit {
         mapping(uint16 => Types.Pool) storage pools,
         uint16 poolId,
         uint256 assets,
-        uint256 shares,
         address receiver
     ) internal {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
-        vault.fulfillDepositRequest(assets, shares, receiver);
+        vault.fulfillDepositRequest(assets, receiver);
     }
 
     function deposit(
@@ -36,41 +35,42 @@ library Deposit {
     ) internal {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
-        vault.requestDeposit(assets, msg.sender, owner);
+        vault.deposit(assets, owner, owner);
     }
 
     function requestRedeem(
         mapping(uint16 => Types.Pool) storage pools,
         uint16 poolId,
-        uint256 shares,
+        uint256 assets,
         address controller,
         address owner
     ) internal {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
+        uint256 shares = vault.convertToShares(assets);
         vault.requestRedeem(shares, controller, owner);
     }
 
     function fulfillRedeem(
         mapping(uint16 => Types.Pool) storage pools,
         uint16 poolId,
-        uint256 shares,
         uint256 assets,
         address receiver
     ) internal {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
-        vault.fulfillRedeemRequest(shares, assets, receiver);
+        uint256 shares = vault.convertToShares(assets);
+        vault.fulfillRedeemRequest(shares, receiver);
     }
 
     function redeem(
         mapping(uint16 => Types.Pool) storage pools,
         uint16 poolId,
-        uint256 shares,
+        uint256 assets,
         address receiver
     ) internal {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
-        vault.redeem(shares, msg.sender, receiver);
+        vault.redeem(assets, msg.sender, receiver);
     }
 }

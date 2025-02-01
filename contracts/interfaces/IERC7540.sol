@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 pragma solidity ^0.8.24;
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {Types} from "../protocol/libraries/types/Types.sol";
 
 interface IERC7540Vault is IERC4626 {
     /**
@@ -73,18 +74,18 @@ interface IERC7540Vault is IERC4626 {
      */
     function mint(uint256 shares, address receiver, address controller) external returns (uint256 assets);
 
-        /**
+    /**
      * @dev Deposits exactly shares Vault shares to receiver by claiming the Request of the controller.
      *
      * - MUST emit the Deposit event.
      * - controller MUST equal msg.sender unless the controller has approved the msg.sender as an operator.
      *
-     * @param shares the amount of shares to mint
+     * @param assets the amount of assets to mint
      * @param receiver the address that will receive the shares
      * @param controller the controller who must approve the mint
-     * @return assets the amount of assets taken from sender
+     * @return shares the amount of shares taken from sender
      */
-    function deposit(uint256 shares, address receiver, address controller) external returns (uint256 assets);
+    function deposit(uint256 assets, address receiver, address controller) external returns (uint256 shares);
 
     /**
      * @dev Transfers assets from sender into the Vault and submits a Request for asynchronous deposit.
@@ -107,10 +108,9 @@ interface IERC7540Vault is IERC4626 {
      * @dev Fulfills a deposit request for a given pool.
      *
      * @param assets the amount of deposit assets to transfer from owner
-     * @param shares the amount of shares to mint
      * @param receiver the address that will receive the shares
      */
-    function fulfillDepositRequest(uint256 assets, uint256 shares, address receiver) external returns (uint256 requestId);
+    function fulfillDepositRequest(uint256 assets, address receiver) external returns (uint256 requestId);
 
     /**
      * @dev Returns the amount of requested assets in Pending state.
@@ -151,14 +151,14 @@ interface IERC7540Vault is IERC4626 {
      *   where msg.sender has ERC-20 approval over the shares of owner.
      * - MUST revert if all of shares cannot be requested for redeem.
      *
-     * @param shares the amount of shares to be redeemed to transfer from owner
+     * @param assets the amount of assets to be redeemed to transfer from owner
      * @param controller the controller of the request who will be able to operate the request
      * @param owner the source of the shares to be redeemed
      *
      * NOTE: most implementations will require pre-approval of the Vault with the Vault's share token.
      */
     function requestRedeem(
-        uint256 shares, 
+        uint256 assets, 
         address controller, 
         address owner
     ) external returns (uint256 requestId);
@@ -166,25 +166,23 @@ interface IERC7540Vault is IERC4626 {
     /**
      * @dev Fulfills a redeem request for a given pool.
      *
-     * @param shares the amount of shares to be redeemed
-     * @param assets the amount of assets to be transferred to receiver
+     * @param assets the amount of assets to be redeemed
      * @param receiver the address that will receive the assets
      */
     function fulfillRedeemRequest(
-        uint256 shares, 
-        uint256 assets, 
+        uint256 assets,
         address receiver
     ) external returns (uint256 requestId);
 
     /**
      * @dev Burns exactly shares from owner and sends assets of underlying tokens to receiver.
      *
-     * @param shares the amount of shares to be redeemed to transfer from owner
+     * @param assets the amount of assets to be redeemed
      * @param controller the controller of the request who will be able to operate the request
      * @param owner the source of the shares to be redeemed
-     * @return assets the amount of assets to be transferred to receiver
+     * @return shares the amount of shares to be transferred to receiver
      */
-    function redeem(uint256 shares, address controller, address owner) external returns (uint256 assets);
+    function redeem(uint256 assets, address controller, address owner) external returns (uint256 shares);
 
     /**
      * @dev Returns the amount of requested assets in Pending state.
@@ -203,5 +201,38 @@ interface IERC7540Vault is IERC4626 {
      * @return claimableAssets amount of assets approved for redeem
      */
     function claimableRedeemRequest(uint256 requestId, address controller) external view returns (uint256 claimableAssets);
+
+    /**
+     * @dev Returns the address of the share token.
+     *
+     * @return share the address of the share token
+     */
+    function getShare() external view returns (address);
+
+    /**
+     * @dev Returns the user vault data for a given user.
+     *
+     * @param user the address of the user
+     * @return userVaultData the user vault data
+     */
+    function getUserVaultData(address user) external view returns (Types.UserVaultData memory);
+
+    /**
+     * @dev Converts assets to shares.
+     *
+     * @param assets the amount of assets to convert
+     * @return shares the amount of shares
+     */
+    function convertToShares(uint256 assets) external view returns (uint256);
+
+    /**
+     * @dev Converts shares to assets.
+     *
+     * @param shares the amount of shares to convert
+     * @return assets the amount of assets
+     */
+    function convertToAssets(uint256 shares) external view returns (uint256);
 }
+
+
 

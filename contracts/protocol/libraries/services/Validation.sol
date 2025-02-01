@@ -36,10 +36,11 @@ library Validation {
 
     function validateRequestRedeem(
         address sToken,
-        uint256 shares
+        uint256 shares,
+        address owner
     ) internal view {
         require(shares > 0, "ERC7540Vault/invalid-shares");
-        require(shares <= ISToken(sToken).balanceOf(msg.sender), "ERC7540Vault/insufficient-shares");
+        require(shares <= ISToken(sToken).balanceOf(owner), "ERC7540Vault/insufficient-shares");
     }
 
     function validateFulfillRedeemRequest(
