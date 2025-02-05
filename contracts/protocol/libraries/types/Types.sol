@@ -3,35 +3,35 @@ pragma solidity ^0.8.24;
 
 library Types {
     struct ReserveData {
-        //stores the reserve configuration
+        /// @dev Stores the reserve configuration
         ReserveConfigurationMap configuration;
-        //the liquidity index. Expressed in ray
+        /// @dev The liquidity index. Expressed in ray
         uint128 liquidityIndex;
-        //the current supply rate. Expressed in ray
+        /// @dev The current supply rate. Expressed in ray
         uint128 currentLiquidityRate;
-        //variable borrow index. Expressed in ray
+        /// @dev Variable borrow index. Expressed in ray
         uint128 variableBorrowIndex;
-        //the current variable borrow rate. Expressed in ray
+        /// @dev The current variable borrow rate. Expressed in ray
         uint128 currentVariableBorrowRate;
-        //the current stable borrow rate. Expressed in ray
+        /// @dev The current stable borrow rate. Expressed in ray
         uint128 currentStableBorrowRate;
-        //timestamp of last update
+        /// @dev Timestamp of last update
         uint40 lastUpdateTimestamp;
-        //the id of the reserve. Represents the position in the list of the active reserves
+        /// @dev The id of the reserve. Represents the position in the list of the active reserves
         uint16 id;
-        //aToken address
+        /// @dev The address of the aToken
         address aTokenAddress;
-        //stableDebtToken address
+        /// @dev The address of the stable debt token
         address stableDebtTokenAddress;
-        //variableDebtToken address
+        /// @dev The address of the variable debt token
         address variableDebtTokenAddress;
-        //address of the interest rate strategy
+        /// @dev The address of the interest rate strategy
         address interestRateStrategyAddress;
-        //the current treasury balance, scaled
+        /// @dev The current treasury balance, scaled
         uint128 accruedToTreasury;
-        //the outstanding unbacked aTokens minted through the bridging feature
+        /// @dev The outstanding unbacked aTokens minted through the bridging feature
         uint128 unbacked;
-        //the outstanding debt borrowed against this asset in isolation mode
+        /// @dev The outstanding debt borrowed against this asset in isolation mode
         uint128 isolationModeTotalDebt;
     }
 
@@ -71,7 +71,49 @@ library Types {
         uint128 pendingRedeemRequest;
     }
 
+    struct Loan {
+        /// @dev Loan ID
+        uint256 id;
+        /// @dev Principal amount of the loan
+        uint256 principal;
+        /// @dev Interest rate of the loan
+        uint256 interestRate;
+        /// @dev Term of the loan in months
+        uint16 termMonths;
+        /// @dev Next payment date
+        uint40 nextPaymentDate;
+        /// @dev Remaining balance of the loan
+        uint256 remainingBalance;
+        /// @dev Current payment index
+        uint16 currentPaymentIndex;
+        /// @dev Monthly payment amount
+        uint256 monthlyPayment;
+        /// @dev Status of the loan
+        Status status;
+    }
+
+    enum Status {
+        /// @dev Loan is active
+        Active,
+        /// @dev Loan is defaulted
+        Defaulted,
+        /// @dev Loan is closed
+        Closed
+    }   
+
+    struct PaymentBreakdown {
+        /// @dev Total payment amount
+        uint256 paymentAmount;
+        /// @dev Principal portion of the payment
+        uint256 principalPortion;
+        /// @dev Interest portion of the payment
+        uint256 interestPortion;
+        /// @dev Remaining balance after payment
+        uint256 remainingBalance;
+    }
+
     struct Pool {
         address vault;
+        mapping(address borrower => Loan[]) loans;
     }
 }

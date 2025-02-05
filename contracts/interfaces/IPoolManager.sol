@@ -65,6 +65,38 @@ interface IPoolManager {
     function redeem(uint16 poolId, uint256 assets, address receiver) external;
 
     /**
+     * @dev Initializes a loan for a given pool.
+     *
+     * @param poolId the id of the pool to initialize the loan for
+     * @param borrower the address of the borrower
+     * @param principal the principal amount of the loan
+     * @param termMonths the term of the loan in months
+     * @param interestRate the interest rate of the loan
+     */
+    function initLoan(
+        uint16 poolId, 
+        address borrower, 
+        uint256 principal, 
+        uint16 termMonths, 
+        uint256 interestRate
+    ) external;
+
+    /**
+     * @dev Repays a loan for a given borrower.
+     *
+     * @param poolId the id of the pool to repay the loan for
+     * @param assets the amount of assets to repay
+     * @param onBehalfOf the address of the borrower
+     * @param loanId the ID of the loan
+     */
+    function repayLoan(
+        uint16 poolId,
+        uint256 assets, 
+        address onBehalfOf,
+        uint256 loanId
+    ) external;
+
+    /**
     * @dev Adds a new pool to the pool manager
     * @param vault The address of the vault to add
     */

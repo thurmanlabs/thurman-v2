@@ -201,6 +201,34 @@ interface IERC7540Vault is IERC4626 {
      * @return claimableAssets amount of assets approved for redeem
      */
     function claimableRedeemRequest(uint256 requestId, address controller) external view returns (uint256 claimableAssets);
+    
+    /**
+     * @dev Initializes a loan for a borrower.
+     *
+     * @param borrower the address of the borrower
+     * @param principal the principal amount of the loan
+     * @param termMonths the term of the loan in months
+     * @param interestRate the interest rate of the loan
+     */
+    function initLoan(
+        address borrower, 
+        uint256 principal, 
+        uint16 termMonths,
+        uint256 interestRate
+    ) external;
+
+    /**
+     * @dev Repays a loan for a given borrower.
+     *
+     * @param assets the amount of assets to repay
+     * @param onBehalfOf the address of the borrower
+     * @param loanId the ID of the loan
+     */
+    function repay(
+        uint256 assets, 
+        address onBehalfOf,
+        uint256 loanId
+    ) external;
 
     /**
      * @dev Returns the address of the share token.
