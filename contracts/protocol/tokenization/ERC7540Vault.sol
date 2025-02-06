@@ -6,11 +6,12 @@ import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC2
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {IERC7540Vault} from "../../interfaces/IERC7540.sol";
 import {ISToken} from "../../interfaces/ISToken.sol";
+import {IDToken} from "../../interfaces/IDToken.sol";
 import {IPool} from "../../interfaces/IPool.sol";
 import {Types} from "../libraries/types/Types.sol";
 import {Validation} from "../libraries/services/Validation.sol";
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
-
+import {Loan} from "../libraries/services/Loan.sol";
 
 contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     using WadRayMath for uint256;
@@ -24,11 +25,14 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     mapping(address => mapping(address => bool)) public isOperator;
     /// @dev Requests for Thurman pool are non-fungible and all have ID = 0
     uint256 private constant REQUEST_ID = 0;
+    uint256 public nextLoanId;
 
     address public poolManager;
     address public aavePool;
     address public share;
+    address public dToken;
     mapping(address => Types.UserVaultData) public userVaultData;
+    mapping(address => Types.Loan[]) public loans;
     
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -38,19 +42,21 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     function initialize(
         address _asset,
         address _share,
+        address _dToken,
         address _aavePool,
         address _poolManager
     ) external initializer {
         __ERC4626_init(IERC20(_asset));
         require(_asset != address(0), "ERC7540Vault/invalid-asset");
         require(_share != address(0), "ERC7540Vault/invalid-share");
+        require(_dToken != address(0), "ERC7540Vault/invalid-dToken");
         require(_aavePool != address(0), "ERC7540Vault/invalid-pool");
         require(_poolManager != address(0), "ERC7540Vault/invalid-manager");
         
         share = _share;
         aavePool = _aavePool;
         poolManager = _poolManager;
-        
+        dToken = _dToken;
         // Get aToken address and validate
         address aToken = IPool(_aavePool).getReserveData(_asset).aTokenAddress;
         require(aToken != address(0), "ERC7540Vault/invalid-atoken");
@@ -173,6 +179,80 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         
         emit Withdraw(address(this), controller, owner, assets, shares);
         return shares;
+    }
+
+    function initLoan(
+        address borrower, 
+        uint256 principal, 
+        uint16 termMonths,
+        uint256 interestRate
+    ) external onlyPoolManager {
+        Validation.validateInitLoan(principal, termMonths, interestRate);
+        uint256 monthlyPayment = Loan.calculateMonthlyPayment(principal, interestRate, termMonths);
+        uint256 currentBorrowerRate = IPool(aavePool).getReserveData(asset()).currentStableBorrowRate;
+        uint256 loanId = nextLoanId++;
+        loans[borrower].push(Types.Loan({
+            id: loanId,
+            principal: principal,
+            interestRate: interestRate,
+            termMonths: termMonths,
+            nextPaymentDate: uint40(block.timestamp + 30 days),
+            remainingBalance: principal,
+            remainingMonthlyPayment: monthlyPayment,
+            currentPaymentIndex: 0,
+            monthlyPayment: monthlyPayment,
+            status: Types.Status.Active,
+            currentBorrowerRate: currentBorrowerRate
+        }));
+        IDToken(dToken).mint(borrower, principal);
+        IPool(aavePool).borrow(asset(), principal, 1, 0, address(this));
+        IERC20(asset()).transfer(borrower, principal);
+        
+        emit LoanInitialized(loanId, borrower, principal, termMonths, interestRate);
+    }
+
+    function repay(
+        uint256 assets, 
+        address onBehalfOf,
+        uint256 loanId
+    ) external onlyPoolManager {
+        Types.Loan storage loan = loans[onBehalfOf][loanId];
+        require(loan.status == Types.Status.Active, "ERC7540Vault/loan-not-active");
+        require(loan.remainingBalance >= assets, "ERC7540Vault/insufficient-loan-balance");
+        loan.currentPaymentIndex++;
+        uint256 interest = Loan.getMonthlyInterest(loan);
+        uint256 principal = assets - interest;
+        // TODO: Make sure that partial payments are allowed and calculated correctly
+        // TODO: Make sure that additional payments above the monthly payment are applied to the remaining balance
+        if (principal > 0) {
+            loan.remainingBalance -= principal;
+        }
+        loan.remainingMonthlyPayment -= assets;
+        if (loan.remainingMonthlyPayment == 0) {
+            loan.nextPaymentDate += 30 days;
+        }
+        if (loan.remainingBalance == 0) {
+            loan.status = Types.Status.Closed;
+        }
+
+        // Calculate the amount to repay to Aave
+        // TODO: Make sure that the amount is calculated correctly
+        uint256 aaveRepaymentAmount = assets
+            .rayMul(loan.currentBorrowerRate)
+            .rayMul(
+                WadRayMath.RAY.rayDiv(loan.termMonths)
+        );
+
+        uint256 margin = assets - aaveRepaymentAmount;
+
+        // Update the borrower rate
+        uint256 currentBorrowerRate = IPool(aavePool).getReserveData(asset()).currentStableBorrowRate;
+        loan.currentBorrowerRate = currentBorrowerRate;
+
+        IPool(aavePool).repay(asset(), aaveRepaymentAmount, 1, address(this)); 
+        IPool(aavePool).supply(asset(), margin, address(this), 0);
+        IERC20(asset()).transfer(onBehalfOf, principal);
+        IDToken(dToken).burn(onBehalfOf, principal);
     }
 
     function pendingRedeemRequest(uint256, address controller) external view returns (uint256) {

@@ -9,6 +9,7 @@ import {IPoolManager} from "../../interfaces/IPoolManager.sol";
 import {IERC7540Vault} from "../../interfaces/IERC7540.sol";
 import {ISToken} from "../../interfaces/ISToken.sol";
 import {Pool} from "../libraries/services/Pool.sol";
+import {Loan} from "../libraries/services/Loan.sol";
 import {Types} from "../libraries/types/Types.sol";
 
 contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, IPoolManager {
@@ -53,8 +54,23 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         Deposit.requestDeposit(_pools, poolId, assets, msg.sender, msg.sender);
     }
 
-    function isOwner(address _address) external view returns (bool) {
-        return owner() == _address;
+    function initLoan(
+        uint16 poolId,
+        address borrower,
+        uint256 principal,
+        uint16 termMonths,
+        uint256 interestRate
+    ) external onlyOwner {
+        Loan.initLoan(_pools, poolId, borrower, principal, termMonths, interestRate);
+    }
+
+    function repayLoan(
+        uint16 poolId,
+        uint256 assets,
+        address onBehalfOf,
+        uint256 loanId
+    ) external {
+        Loan.repayLoan(_pools, poolId, assets, onBehalfOf, loanId);
     }
 
     function getPool(uint16 poolId) external view returns (Types.Pool memory) {
@@ -67,5 +83,8 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         ISToken(sToken).setVault(poolId);
     }
 
+    function isOwner(address _address) external view returns (bool) {
+        return _address == owner();
+    }
 
 }

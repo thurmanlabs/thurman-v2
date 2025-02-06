@@ -43,6 +43,16 @@ interface IERC7540Vault is IERC4626 {
         uint256 shares
     );
 
+    event LoanInitialized(
+        uint256 indexed loanId, 
+        address indexed borrower, 
+        uint256 principal, 
+        uint16 termMonths, 
+        uint256 interestRate
+    );
+    
+    
+
     /**
      * @dev Sets or removes an operator for the caller.
      *

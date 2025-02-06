@@ -55,4 +55,15 @@ library Validation {
     ) internal pure {
         require(userVaultData.maxWithdraw >= shares, "ERC7540Vault/insufficient-max-withdraw");
     }
+
+    function validateInitLoan(
+        uint256 principal,
+        uint16 termMonths,
+        uint256 interestRate
+    ) internal pure {
+        require(principal > 0, "ERC7540Vault/invalid-principal");
+        require(termMonths > 0, "ERC7540Vault/invalid-term-months");
+        require(interestRate > 0, "ERC7540Vault/invalid-interest-rate");
+    }
+        
 }

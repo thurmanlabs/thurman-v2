@@ -76,7 +76,7 @@ library Types {
         uint256 id;
         /// @dev Principal amount of the loan
         uint256 principal;
-        /// @dev Interest rate of the loan
+        /// @dev Annual interest rate in basis points (e.g., 600 = 6%)
         uint256 interestRate;
         /// @dev Term of the loan in months
         uint16 termMonths;
@@ -88,8 +88,12 @@ library Types {
         uint16 currentPaymentIndex;
         /// @dev Monthly payment amount
         uint256 monthlyPayment;
+        /// @dev Remaining monthly payment
+        uint256 remainingMonthlyPayment;
         /// @dev Status of the loan
         Status status;
+        /// @dev Current borrower index
+        uint256 currentBorrowerRate;
     }
 
     enum Status {
@@ -114,6 +118,5 @@ library Types {
 
     struct Pool {
         address vault;
-        mapping(address borrower => Loan[]) loans;
     }
 }

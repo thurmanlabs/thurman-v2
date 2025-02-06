@@ -92,6 +92,38 @@ library WadRayMath {
     }
   }
 
+  function rayPow(uint256 x, uint256 y) internal pure returns (uint256 result) {
+    require(x >= RAY, "Base must be at least RAY");
+    if (x == RAY) return RAY; // RAY^y = RAY for any y
+
+    assembly {
+        result := RAY // Start with 1 in ray format
+        let base := x // The base in ray format
+
+        // Check if y is zero
+        if iszero(y) {
+            // If y is zero, return RAY
+            return(result, 0x20) // Return RAY (1 in ray format)
+        }
+
+        // Loop until y is 0
+        for { } gt(y, 0) { } {
+            // If y is odd, multiply result by base
+            if and(y, 1) {
+                result := mul(result, base)
+                result := div(result, RAY) // Normalize to ray format
+            }
+            // Square the base
+            base := mul(base, base)
+            base := div(base, RAY) // Normalize to ray format
+            // Divide y by 2
+            y := shr(1, y) // Right shift y by 1 (equivalent to y / 2)
+        }
+    }
+}
+
+  
+
   /**
    * @dev Casts ray down to wad
    * @dev assembly optimized for improved gas savings, see https://twitter.com/transmissions11/status/1451131036377571328
