@@ -219,7 +219,6 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         Types.Loan storage loan = loans[onBehalfOf][loanId];
         require(loan.status == Types.Status.Active, "ERC7540Vault/loan-not-active");
         require(loan.remainingBalance >= assets, "ERC7540Vault/insufficient-loan-balance");
-        IERC20(asset()).transferFrom(onBehalfOf, address(this), assets);
         loan.currentPaymentIndex++;
         uint256 interest = _getMonthlyInterest(loan);
         uint256 principal = assets - interest;
@@ -240,19 +239,14 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
             loan.status = Types.Status.Closed;
         }
 
-        // uint256 aaveRepaymentAmount = assets
-        //     .rayMul(loan.currentBorrowerRate)
-        //     .rayMul(
-        //         WadRayMath.RAY.rayDiv(loan.termMonths)
-        // );
-
-        // uint256 margin = assets - aaveRepaymentAmount;
+        // TODO: Create a method to split payments between Aave and Thurman Protocol
 
         uint256 currentBorrowerRate = IPool(aavePool).getReserveData(asset()).currentStableBorrowRate;
         loan.currentBorrowerRate = currentBorrowerRate;
+        
+        IERC20(asset()).transferFrom(onBehalfOf, address(this), assets);
 
         IPool(aavePool).repay(asset(), assets, 2, address(this)); 
-        // IPool(aavePool).supply(asset(), margin, address(this), 0);
         IDToken(dToken).burn(onBehalfOf, principal);
 
         emit LoanRepaid(loanId, onBehalfOf, principal, interest);
