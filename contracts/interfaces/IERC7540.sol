@@ -50,7 +50,13 @@ interface IERC7540Vault is IERC4626 {
         uint16 termMonths, 
         uint256 interestRate
     );
-    
+
+    event LoanRepaid(
+        uint256 indexed loanId,
+        address indexed borrower,
+        uint256 principalPaid,
+        uint256 interestPaid
+    );
     
 
     /**

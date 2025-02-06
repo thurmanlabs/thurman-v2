@@ -2,7 +2,7 @@ import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { ethers, upgrades } from "hardhat";
 import { ContractFactory } from "ethers";
 import { IPool } from "../../typechain-types";
-import { PoolManager, ERC7540Vault, SToken } from "../../typechain-types";
+import { PoolManager, ERC7540Vault, SToken, DToken } from "../../typechain-types";
 import { getAddresses } from "../../config/addresses";
 import { IERC20 } from "../../typechain-types";
 export interface TestEnv {
@@ -11,6 +11,7 @@ export interface TestEnv {
     poolManager: PoolManager;
     vault: ERC7540Vault;
     sUSDC: SToken;
+    dUSDC: DToken;
     usdc: IERC20;
     aUSDC: IERC20;
     aavePool: IPool;
@@ -51,11 +52,26 @@ export async function setupTestEnv(): Promise<TestEnv> {
     await sUSDC.waitForDeployment();
     testEnv.sUSDC = sUSDC as unknown as SToken;
 
+    const DTokenFactory = await ethers.getContractFactory("DToken");
+    const dUSDC = await upgrades.deployProxy(DTokenFactory as unknown as ContractFactory, 
+        [
+            addresses.tokens.USDC,
+            "dUSDC",
+            "dUSDC"
+        ],
+        {
+            initializer: "initialize"
+        }
+    );
+    await dUSDC.waitForDeployment();
+    testEnv.dUSDC = dUSDC as unknown as DToken;
+
     const VaultFactory = await ethers.getContractFactory("ERC7540Vault");
     const vault = await upgrades.deployProxy(VaultFactory as unknown as ContractFactory, 
         [
             addresses.tokens.USDC,
             sUSDC.target,
+            dUSDC.target,
             addresses.aave.pool,
             poolManager.target
         ]

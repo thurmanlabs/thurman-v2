@@ -92,37 +92,45 @@ library WadRayMath {
     }
   }
 
-  function rayPow(uint256 x, uint256 y) internal pure returns (uint256 result) {
-    require(x >= RAY, "Base must be at least RAY");
-    if (x == RAY) return RAY; // RAY^y = RAY for any y
-
-    assembly {
-        result := RAY // Start with 1 in ray format
-        let base := x // The base in ray format
-
-        // Check if y is zero
-        if iszero(y) {
-            // If y is zero, return RAY
-            return(result, 0x20) // Return RAY (1 in ray format)
-        }
-
-        // Loop until y is 0
-        for { } gt(y, 0) { } {
-            // If y is odd, multiply result by base
-            if and(y, 1) {
-                result := mul(result, base)
-                result := div(result, RAY) // Normalize to ray format
-            }
-            // Square the base
-            base := mul(base, base)
-            base := div(base, RAY) // Normalize to ray format
-            // Divide y by 2
-            y := shr(1, y) // Right shift y by 1 (equivalent to y / 2)
-        }
+  /**
+   * @notice Calculates x^n in ray, checking for overflow and edge cases
+   * @param x Base in ray
+   * @param n Exponent
+   * @return z Result in ray
+   */
+  function rayPow(uint256 x, uint256 n) internal pure returns (uint256 z) {
+    // Handle edge cases
+    if (n == 0) {
+      return RAY;
     }
-}
+    if (x == 0) {
+      return 0;
+    }
+    if (x == RAY) {
+      return RAY;
+    }
 
-  
+    // Ensure x is normalized to RAY
+    require(x >= RAY, "WadRayMath: x < RAY");
+
+    // Use binary exponentiation
+    z = n % 2 != 0 ? x : RAY;
+
+    // Divide n by 2
+    for (n /= 2; n != 0; n /= 2) {
+      // Square x, revert if overflow
+      uint256 square = rayMul(x, x);
+      require(square >= x, "WadRayMath: multiplication overflow");
+      x = square;
+
+      // Multiply if n is odd
+      if (n % 2 != 0) {
+        uint256 result = rayMul(z, x);
+        require(result >= z, "WadRayMath: multiplication overflow");
+        z = result;
+      }
+    }
+  }
 
   /**
    * @dev Casts ray down to wad

@@ -11,7 +11,7 @@ import {IPool} from "../../interfaces/IPool.sol";
 import {Types} from "../libraries/types/Types.sol";
 import {Validation} from "../libraries/services/Validation.sol";
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
-import {Loan} from "../libraries/services/Loan.sol";
+import {MathUtils} from "../libraries/math/MathUtils.sol";
 
 contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     using WadRayMath for uint256;
@@ -188,7 +188,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         uint256 interestRate
     ) external onlyPoolManager {
         Validation.validateInitLoan(principal, termMonths, interestRate);
-        uint256 monthlyPayment = Loan.calculateMonthlyPayment(principal, interestRate, termMonths);
+        uint256 monthlyPayment = _calculateMonthlyPayment(principal, interestRate, termMonths);
         uint256 currentBorrowerRate = IPool(aavePool).getReserveData(asset()).currentStableBorrowRate;
         uint256 loanId = nextLoanId++;
         loans[borrower].push(Types.Loan({
@@ -205,7 +205,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
             currentBorrowerRate: currentBorrowerRate
         }));
         IDToken(dToken).mint(borrower, principal);
-        IPool(aavePool).borrow(asset(), principal, 1, 0, address(this));
+        IPool(aavePool).borrow(asset(), principal, 2, 0, address(this));
         IERC20(asset()).transfer(borrower, principal);
         
         emit LoanInitialized(loanId, borrower, principal, termMonths, interestRate);
@@ -219,40 +219,43 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         Types.Loan storage loan = loans[onBehalfOf][loanId];
         require(loan.status == Types.Status.Active, "ERC7540Vault/loan-not-active");
         require(loan.remainingBalance >= assets, "ERC7540Vault/insufficient-loan-balance");
+        IERC20(asset()).transferFrom(onBehalfOf, address(this), assets);
         loan.currentPaymentIndex++;
-        uint256 interest = Loan.getMonthlyInterest(loan);
+        uint256 interest = _getMonthlyInterest(loan);
         uint256 principal = assets - interest;
-        // TODO: Make sure that partial payments are allowed and calculated correctly
-        // TODO: Make sure that additional payments above the monthly payment are applied to the remaining balance
+        uint256 daysInMonth = _getDaysInMonth(loan.nextPaymentDate);
+        
         if (principal > 0) {
             loan.remainingBalance -= principal;
         }
-        loan.remainingMonthlyPayment -= assets;
+        if (loan.remainingMonthlyPayment > assets) {
+            loan.remainingMonthlyPayment -= assets;
+        } else {
+            loan.remainingMonthlyPayment = 0;
+        }
         if (loan.remainingMonthlyPayment == 0) {
-            loan.nextPaymentDate += 30 days;
+            loan.nextPaymentDate += uint40(daysInMonth); 
         }
         if (loan.remainingBalance == 0) {
             loan.status = Types.Status.Closed;
         }
 
-        // Calculate the amount to repay to Aave
-        // TODO: Make sure that the amount is calculated correctly
-        uint256 aaveRepaymentAmount = assets
-            .rayMul(loan.currentBorrowerRate)
-            .rayMul(
-                WadRayMath.RAY.rayDiv(loan.termMonths)
-        );
+        // uint256 aaveRepaymentAmount = assets
+        //     .rayMul(loan.currentBorrowerRate)
+        //     .rayMul(
+        //         WadRayMath.RAY.rayDiv(loan.termMonths)
+        // );
 
-        uint256 margin = assets - aaveRepaymentAmount;
+        // uint256 margin = assets - aaveRepaymentAmount;
 
-        // Update the borrower rate
         uint256 currentBorrowerRate = IPool(aavePool).getReserveData(asset()).currentStableBorrowRate;
         loan.currentBorrowerRate = currentBorrowerRate;
 
-        IPool(aavePool).repay(asset(), aaveRepaymentAmount, 1, address(this)); 
-        IPool(aavePool).supply(asset(), margin, address(this), 0);
-        IERC20(asset()).transfer(onBehalfOf, principal);
+        IPool(aavePool).repay(asset(), assets, 2, address(this)); 
+        // IPool(aavePool).supply(asset(), margin, address(this), 0);
         IDToken(dToken).burn(onBehalfOf, principal);
+
+        emit LoanRepaid(loanId, onBehalfOf, principal, interest);
     }
 
     function pendingRedeemRequest(uint256, address controller) external view returns (uint256) {
@@ -289,5 +292,63 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     {
         uint256 index = IPool(aavePool).getReserveData(asset()).liquidityIndex;
         return shares.rayMul(index);
+    }
+
+    function _calculateMonthlyPayment(
+        uint256 principal,
+        uint256 interestRate,  // Annual interest rate in basis points (e.g., 600 = 6%)
+        uint256 totalPayments
+    ) internal pure returns (uint256) {
+        // Convert principal to RAY
+        uint256 principalRay = WadRayMath.wadToRay(principal);
+        
+        // Interest rate should NOT be converted to RAY first
+        // 600 basis points = 0.06 = 6%
+        uint256 annualRate = interestRate * WadRayMath.RAY / 10000; // Convert from basis points to RAY decimal
+        uint256 monthlyRate = annualRate / 12;  // Convert to monthly rate
+        
+        // Debug requires
+        require(monthlyRate > 0, "Monthly rate is 0");
+        require(monthlyRate <= WadRayMath.RAY, "Monthly rate too high");
+        
+        // Calculate (1 + r)
+        uint256 rateFactorRay = WadRayMath.RAY + monthlyRate;
+        require(rateFactorRay >= WadRayMath.RAY, "Rate factor < RAY");
+        
+        // Calculate (1 + r)^n
+        uint256 rateFactorPower = rateFactorRay.rayPow(totalPayments);
+        
+        // Calculate P * r * (1 + r)^n
+        uint256 numerator = principalRay.rayMul(monthlyRate.rayMul(rateFactorPower));
+        
+        // Calculate (1 + r)^n - 1
+        uint256 denominator = rateFactorPower - WadRayMath.RAY;
+        
+        // Return result converted back from RAY
+        return WadRayMath.rayToWad(numerator.rayDiv(denominator));
+    }
+
+    function _getMonthlyInterest(Types.Loan memory loan) public pure returns (uint256) {
+        uint256 remainingBalance = loan.remainingBalance;
+        return remainingBalance.rayMul(loan.interestRate).rayDiv(12).rayDiv(10000);
+    }
+
+     // Helper function to get days in month
+    function _getDaysInMonth(uint256 timestamp) internal pure returns (uint256) {
+        uint256 year = timestamp / (MathUtils.SECONDS_PER_DAY * MathUtils.DAYS_PER_YEAR);
+        uint256 month = (timestamp % (MathUtils.SECONDS_PER_DAY * MathUtils.DAYS_PER_YEAR)) / (MathUtils.SECONDS_PER_DAY * 30);
+        
+        if (month == 1) { // February
+            if (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) {
+                return 29;
+            }
+            return 28;
+        }
+        
+        if (month == 3 || month == 5 || month == 8 || month == 10) {
+            return 30;
+        }
+        
+        return 31;
     }
 }
