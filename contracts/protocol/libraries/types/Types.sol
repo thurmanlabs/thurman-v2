@@ -127,5 +127,9 @@ library Types {
         uint256 aaveCollateralBalance;
         /// @dev The balance of the aave borrow
         uint256 aaveBorrowBalance;
+        /// @dev The ltv ratio
+        uint256 ltvRatio;
+        /// @dev The ltv ratio cap
+        uint256 ltvRatioCap;
     }
 }

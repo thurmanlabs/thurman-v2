@@ -24,6 +24,8 @@ library Loan {
         IVariableDebtToken variableDebtToken = IVariableDebtToken(pool.variableDebtToken);
         uint256 aaveBorrowBalance = variableDebtToken.balanceOf(pool.vault);
         pool.aaveBorrowBalance = aaveBorrowBalance;
+        uint256 ltvRatio = pool.aaveBorrowBalance.rayDiv(pool.aaveCollateralBalance);
+        pool.ltvRatio = ltvRatio;
     }
 
     function repayLoan(
@@ -39,5 +41,7 @@ library Loan {
         IVariableDebtToken variableDebtToken = IVariableDebtToken(pool.variableDebtToken);
         uint256 aaveBorrowBalance = variableDebtToken.balanceOf(pool.vault);
         pool.aaveBorrowBalance = aaveBorrowBalance;
+        uint256 ltvRatio = pool.aaveBorrowBalance.rayDiv(pool.aaveCollateralBalance);
+        pool.ltvRatio = ltvRatio;
     }
 }

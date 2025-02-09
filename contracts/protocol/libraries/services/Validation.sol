@@ -56,6 +56,7 @@ library Validation {
         require(userVaultData.maxWithdraw >= shares, "ERC7540Vault/insufficient-max-withdraw");
     }
 
+    // TODO: Add validation that takes into account the ltv ratio cap of the pool
     function validateInitLoan(
         uint256 principal,
         uint16 termMonths,

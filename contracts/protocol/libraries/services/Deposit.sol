@@ -4,8 +4,10 @@ pragma solidity ^0.8.24;
 import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
 import {IAToken} from "../../../interfaces/IAToken.sol";
 import {Types} from "../types/Types.sol";
-
+import {WadRayMath} from "../math/WadRayMath.sol";
 library Deposit {
+    using WadRayMath for uint256;
+
     function requestDeposit(
         mapping(uint16 => Types.Pool) storage pools,
         uint16 poolId,
@@ -30,6 +32,8 @@ library Deposit {
         IAToken aToken = IAToken(pool.aToken);
         uint256 aaveCollateralBalance = aToken.balanceOf(pool.vault);
         pool.aaveCollateralBalance = aaveCollateralBalance;
+        uint256 ltvRatio = pool.aaveBorrowBalance.rayDiv(aaveCollateralBalance);
+        pool.ltvRatio = ltvRatio;
     }
 
     function deposit(
@@ -69,6 +73,8 @@ library Deposit {
         IAToken aToken = IAToken(pool.aToken);
         uint256 aaveBorrowBalance = aToken.balanceOf(pool.variableDebtToken);
         pool.aaveBorrowBalance = aaveBorrowBalance;
+        uint256 ltvRatio = pool.aaveBorrowBalance.rayDiv(pool.aaveCollateralBalance);
+        pool.ltvRatio = ltvRatio;
     }
 
     function redeem(
