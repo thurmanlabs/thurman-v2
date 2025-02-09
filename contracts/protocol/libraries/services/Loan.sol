@@ -1,39 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 pragma solidity ^0.8.24;
 
+import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
+import {IVariableDebtToken} from "../../../interfaces/IVariableDebtToken.sol";
 import {WadRayMath} from "../math/WadRayMath.sol";
 import {Types} from "../types/Types.sol";
-import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
+
 
 library Loan {
     using WadRayMath for uint256;
-
-    // function calculateMonthlyPayment(
-    //     uint256 principal,
-    //     uint256 interestRate,  // Annual interest rate in basis points (e.g., 600 = 6%)
-    //     uint256 totalPayments
-    // ) internal pure returns (uint256) {
-    //     // Convert annual rate to monthly (divide by 12 and 10000 for basis points)
-    //     uint256 monthlyRate = interestRate.rayDiv(12).rayMul(WadRayMath.RAY).rayDiv(10000);
-        
-    //     // Calculate (1 + r)^n
-    //     uint256 rateFactorRay = WadRayMath.RAY + monthlyRate;
-    //     uint256 rateFactorPower = rateFactorRay.rayPow(totalPayments);
-        
-    //     // Calculate P * r * (1 + r)^n
-    //     uint256 numerator = principal.rayMul(monthlyRate.rayMul(rateFactorPower));
-        
-    //     // Calculate (1 + r)^n - 1
-    //     uint256 denominator = rateFactorPower - WadRayMath.RAY;
-        
-    //     // Return P * r * (1 + r)^n / ((1 + r)^n - 1)
-    //     return numerator.rayDiv(denominator);
-    // }
-
-    // function getMonthlyInterest(Types.Loan storage loan) public view returns (uint256) {
-    //     uint256 remainingBalance = loan.remainingBalance;
-    //     return remainingBalance.rayMul(loan.interestRate).rayDiv(12).rayDiv(10000);
-    // }
 
     function initLoan(
         mapping(uint16 => Types.Pool) storage pools,
@@ -46,6 +21,9 @@ library Loan {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         vault.initLoan(borrower, principal, termMonths, interestRate);
+        IVariableDebtToken variableDebtToken = IVariableDebtToken(pool.variableDebtToken);
+        uint256 aaveBorrowBalance = variableDebtToken.balanceOf(pool.vault);
+        pool.aaveBorrowBalance = aaveBorrowBalance;
     }
 
     function repayLoan(
@@ -58,5 +36,8 @@ library Loan {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         vault.repay(assets, onBehalfOf, loanId);
+        IVariableDebtToken variableDebtToken = IVariableDebtToken(pool.variableDebtToken);
+        uint256 aaveBorrowBalance = variableDebtToken.balanceOf(pool.vault);
+        pool.aaveBorrowBalance = aaveBorrowBalance;
     }
 }

@@ -117,6 +117,15 @@ library Types {
     }
 
     struct Pool {
+        /// @dev The address of the vault
         address vault;
+        /// @dev The address of the aave aToken
+        address aToken;
+        /// @dev The address of the variable debt token
+        address variableDebtToken;
+        /// @dev The balance of the aave collateral
+        uint256 aaveCollateralBalance;
+        /// @dev The balance of the aave borrow
+        uint256 aaveBorrowBalance;
     }
 }

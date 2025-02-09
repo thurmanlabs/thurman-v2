@@ -2,7 +2,9 @@
 pragma solidity ^0.8.24;
 
 import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
+import {IAToken} from "../../../interfaces/IAToken.sol";
 import {Types} from "../types/Types.sol";
+
 library Deposit {
     function requestDeposit(
         mapping(uint16 => Types.Pool) storage pools,
@@ -25,6 +27,9 @@ library Deposit {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         vault.fulfillDepositRequest(assets, receiver);
+        IAToken aToken = IAToken(pool.aToken);
+        uint256 aaveCollateralBalance = aToken.balanceOf(pool.vault);
+        pool.aaveCollateralBalance = aaveCollateralBalance;
     }
 
     function deposit(
@@ -61,6 +66,9 @@ library Deposit {
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         uint256 shares = vault.convertToShares(assets);
         vault.fulfillRedeemRequest(shares, receiver);
+        IAToken aToken = IAToken(pool.aToken);
+        uint256 aaveBorrowBalance = aToken.balanceOf(pool.variableDebtToken);
+        pool.aaveBorrowBalance = aaveBorrowBalance;
     }
 
     function redeem(
