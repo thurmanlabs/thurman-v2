@@ -31,11 +31,8 @@ library Deposit {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         vault.fulfillDepositRequest(assets, receiver);
-        IAToken aToken = IAToken(pool.aToken);
-        uint256 aaveCollateralBalance = aToken.balanceOf(pool.vault);
-        pool.aaveCollateralBalance = aaveCollateralBalance;
-        uint256 ltvRatio = pool.aaveBorrowBalance.rayDiv(aaveCollateralBalance);
-        pool.ltvRatio = ltvRatio;
+        pool.aaveCollateralBalance = IAToken(pool.aToken).balanceOf(pool.vault);
+        pool.ltvRatio = pool.aaveBorrowBalance.rayDiv(pool.aaveCollateralBalance);
     }
 
     function deposit(
@@ -72,13 +69,9 @@ library Deposit {
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         uint256 shares = vault.convertToShares(assets);
         vault.fulfillRedeemRequest(shares, receiver);
-        IAToken aToken = IAToken(pool.aToken);
-        uint256 aaveCollateralBalance = aToken.balanceOf(pool.vault);
-        pool.aaveCollateralBalance = aaveCollateralBalance;
-        uint256 aaveBorrowBalance = IVariableDebtToken(pool.variableDebtToken).balanceOf(pool.vault);
-        pool.aaveBorrowBalance = aaveBorrowBalance;
-        uint256 ltvRatio = pool.aaveBorrowBalance.rayDiv(aaveCollateralBalance);
-        pool.ltvRatio = ltvRatio;
+        pool.aaveCollateralBalance = IAToken(pool.aToken).balanceOf(pool.vault);
+        pool.aaveBorrowBalance = IVariableDebtToken(pool.variableDebtToken).balanceOf(pool.vault);
+        pool.ltvRatio = pool.aaveBorrowBalance.rayDiv(pool.aaveCollateralBalance);
     }
 
     function redeem(

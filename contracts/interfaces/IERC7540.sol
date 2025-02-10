@@ -227,7 +227,8 @@ interface IERC7540Vault is IERC4626 {
      * @param interestRate the interest rate of the loan
      */
     function initLoan(
-        address borrower, 
+        address borrower,
+        uint256 collateralAllocated,
         uint256 principal, 
         uint16 termMonths,
         uint256 interestRate
@@ -237,11 +238,13 @@ interface IERC7540Vault is IERC4626 {
      * @dev Repays a loan for a given borrower.
      *
      * @param assets the amount of assets to repay
+     * @param caller the address of the caller repaying the loan
      * @param onBehalfOf the address of the borrower
      * @param loanId the ID of the loan
      */
     function repay(
         uint256 assets, 
+        address caller,
         address onBehalfOf,
         uint256 loanId
     ) external;

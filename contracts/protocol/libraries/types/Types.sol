@@ -74,6 +74,8 @@ library Types {
     struct Loan {
         /// @dev Loan ID
         uint256 id;
+        /// @dev collateral allocated to the loan
+        uint256 collateralAllocated;
         /// @dev Principal amount of the loan
         uint256 principal;
         /// @dev Annual interest rate in basis points (e.g., 600 = 6%)
@@ -84,6 +86,8 @@ library Types {
         uint40 nextPaymentDate;
         /// @dev Remaining balance of the loan
         uint256 remainingBalance;
+        /// @dev Remaining balance in aave
+        uint256 aaveBalance;
         /// @dev Current payment index
         uint16 currentPaymentIndex;
         /// @dev Monthly payment amount
@@ -92,8 +96,11 @@ library Types {
         uint256 remainingMonthlyPayment;
         /// @dev Status of the loan
         Status status;
-        /// @dev Current borrower index
-        uint256 currentBorrowerRate;
+        /// @dev Aave's current variable borrower index
+        uint256 currentBorrowerIndex;
+        /// @dev Timestamp of last update
+        uint40 lastUpdateTimestamp;
+        
     }
 
     enum Status {
@@ -131,5 +138,7 @@ library Types {
         uint256 ltvRatio;
         /// @dev The ltv ratio cap
         uint256 ltvRatioCap;
+        /// @dev The collateral cushion for individual loans expressed in ray
+        uint256 collateralCushion;
     }
 }

@@ -11,10 +11,14 @@ library Pool {
 
     function addPool(
         mapping(uint16 => Types.Pool) storage pools,
-        address vault,
+        address vault,   
+        uint256 collateralCushion,
+        uint256 ltvRatioCap,
         uint16 poolCount
     ) internal returns (bool) {
         pools[poolCount].vault = vault;
+        pools[poolCount].collateralCushion = collateralCushion;
+        pools[poolCount].ltvRatioCap = ltvRatioCap;
         return true;
     }
 

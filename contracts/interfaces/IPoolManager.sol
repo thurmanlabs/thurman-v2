@@ -99,8 +99,10 @@ interface IPoolManager {
     /**
     * @dev Adds a new pool to the pool manager
     * @param vault The address of the vault to add
+    * @param collateralCushion The collateral cushion for the pool
+    * @param ltvRatioCap The ltv ratio cap for the pool
     */
-    function addPool(address vault) external;
+    function addPool(address vault, uint256 collateralCushion, uint256 ltvRatioCap) external;
 
     /**
      * @dev Returns boolean telling if the address is the owner of the pool manager

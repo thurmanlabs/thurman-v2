@@ -24,8 +24,8 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         _poolCount = 0;
     }
 
-    function addPool(address vault) external onlyOwner {
-        if (Pool.addPool(_pools, vault, _poolCount)) {
+    function addPool(address vault, uint256 collateralCushion, uint256 ltvRatioCap) external onlyOwner {
+        if (Pool.addPool(_pools, vault, collateralCushion, ltvRatioCap, _poolCount)) {
             _poolCount++;
         }
     }

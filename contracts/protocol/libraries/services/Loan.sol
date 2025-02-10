@@ -22,12 +22,10 @@ library Loan {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         Validation.validateInitLoan(pool, principal, termMonths, interestRate);
-        vault.initLoan(borrower, principal, termMonths, interestRate);
-        IVariableDebtToken variableDebtToken = IVariableDebtToken(pool.variableDebtToken);
-        uint256 aaveBorrowBalance = variableDebtToken.balanceOf(pool.vault);
-        pool.aaveBorrowBalance = aaveBorrowBalance;
-        uint256 ltvRatio = pool.aaveBorrowBalance.rayDiv(pool.aaveCollateralBalance);
-        pool.ltvRatio = ltvRatio;
+        uint256 collateralAllocated = principal.rayMul(pool.collateralCushion);
+        vault.initLoan(borrower, collateralAllocated, principal, termMonths, interestRate);
+        pool.aaveBorrowBalance = IVariableDebtToken(pool.variableDebtToken).balanceOf(pool.vault);
+        pool.ltvRatio = pool.aaveBorrowBalance.rayDiv(pool.aaveCollateralBalance);
     }
 
     function repayLoan(
@@ -39,11 +37,8 @@ library Loan {
     ) internal {  
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
-        vault.repay(assets, onBehalfOf, loanId);
-        IVariableDebtToken variableDebtToken = IVariableDebtToken(pool.variableDebtToken);
-        uint256 aaveBorrowBalance = variableDebtToken.balanceOf(pool.vault);
-        pool.aaveBorrowBalance = aaveBorrowBalance;
-        uint256 ltvRatio = pool.aaveBorrowBalance.rayDiv(pool.aaveCollateralBalance);
-        pool.ltvRatio = ltvRatio;
+        vault.repay(assets, msg.sender, onBehalfOf, loanId);
+        pool.aaveBorrowBalance = IVariableDebtToken(pool.variableDebtToken).balanceOf(pool.vault);
+        pool.ltvRatio = pool.aaveBorrowBalance.rayDiv(pool.aaveCollateralBalance);
     }
 }

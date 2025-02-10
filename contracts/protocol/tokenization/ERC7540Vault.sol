@@ -183,25 +183,29 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
 
     function initLoan(
         address borrower, 
+        uint256 collateralAllocated,
         uint256 principal, 
         uint16 termMonths,
         uint256 interestRate
     ) external onlyPoolManager {
         uint256 monthlyPayment = _calculateMonthlyPayment(principal, interestRate, termMonths);
-        uint256 currentBorrowerRate = IPool(aavePool).getReserveData(asset()).currentStableBorrowRate;
+        uint256 currentBorrowerIndex = IPool(aavePool).getReserveData(asset()).variableBorrowIndex;
         uint256 loanId = nextLoanId++;
         loans[borrower].push(Types.Loan({
             id: loanId,
+            collateralAllocated: collateralAllocated,
             principal: principal,
             interestRate: interestRate,
             termMonths: termMonths,
             nextPaymentDate: uint40(block.timestamp + 30 days),
             remainingBalance: principal,
+            aaveBalance: principal,
             remainingMonthlyPayment: monthlyPayment,
             currentPaymentIndex: 0,
             monthlyPayment: monthlyPayment,
             status: Types.Status.Active,
-            currentBorrowerRate: currentBorrowerRate
+            currentBorrowerIndex: currentBorrowerIndex,
+            lastUpdateTimestamp: uint40(block.timestamp)
         }));
         IDToken(dToken).mint(borrower, principal);
         IPool(aavePool).borrow(asset(), principal, 2, 0, address(this));
@@ -211,7 +215,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     }
 
     function repay(
-        uint256 assets, 
+        uint256 assets,
+        address caller,
         address onBehalfOf,
         uint256 loanId
     ) external onlyPoolManager {
@@ -240,12 +245,19 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
 
         // TODO: Create a method to split payments between Aave and Thurman Protocol
 
-        uint256 currentBorrowerRate = IPool(aavePool).getReserveData(asset()).currentStableBorrowRate;
-        loan.currentBorrowerRate = currentBorrowerRate;
-        
-        IERC20(asset()).transferFrom(onBehalfOf, address(this), assets);
+        uint256 currentBorrowerIndex = IPool(aavePool).getReserveData(asset()).variableBorrowIndex;
+        uint256 balanceIncrease = loan.aaveBalance
+            .rayMul(currentBorrowerIndex.rayDiv(loan.currentBorrowerIndex) - WadRayMath.RAY);
+        loan.currentBorrowerIndex = currentBorrowerIndex;
 
-        IPool(aavePool).repay(asset(), assets, 2, address(this)); 
+        uint256 aavePaymentAmount = principal + balanceIncrease;
+        
+        IERC20(asset()).transferFrom(caller, address(this), aavePaymentAmount);
+
+        IPool(aavePool).repay(asset(), aavePaymentAmount, 2, address(this));
+
+        
+        loan.aaveBalance = loan.aaveBalance + balanceIncrease - aavePaymentAmount;
         IDToken(dToken).burn(onBehalfOf, principal);
 
         emit LoanRepaid(loanId, onBehalfOf, principal, interest);
