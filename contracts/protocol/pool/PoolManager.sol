@@ -74,7 +74,7 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
     }
 
     function getPool(uint16 poolId) external view returns (Types.Pool memory) {
-        return _pools[poolId];
+        return Pool.getPool(_pools, poolId);
     }
 
     function connectSTokentoVault(uint16 poolId) external {

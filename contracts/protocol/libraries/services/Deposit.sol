@@ -5,6 +5,8 @@ import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
 import {IAToken} from "../../../interfaces/IAToken.sol";
 import {Types} from "../types/Types.sol";
 import {WadRayMath} from "../math/WadRayMath.sol";
+import {IVariableDebtToken} from "../../../interfaces/IVariableDebtToken.sol";
+
 library Deposit {
     using WadRayMath for uint256;
 
@@ -71,9 +73,11 @@ library Deposit {
         uint256 shares = vault.convertToShares(assets);
         vault.fulfillRedeemRequest(shares, receiver);
         IAToken aToken = IAToken(pool.aToken);
-        uint256 aaveBorrowBalance = aToken.balanceOf(pool.variableDebtToken);
+        uint256 aaveCollateralBalance = aToken.balanceOf(pool.vault);
+        pool.aaveCollateralBalance = aaveCollateralBalance;
+        uint256 aaveBorrowBalance = IVariableDebtToken(pool.variableDebtToken).balanceOf(pool.vault);
         pool.aaveBorrowBalance = aaveBorrowBalance;
-        uint256 ltvRatio = pool.aaveBorrowBalance.rayDiv(pool.aaveCollateralBalance);
+        uint256 ltvRatio = pool.aaveBorrowBalance.rayDiv(aaveCollateralBalance);
         pool.ltvRatio = ltvRatio;
     }
 

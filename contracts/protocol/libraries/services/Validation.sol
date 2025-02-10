@@ -5,8 +5,10 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
 import {ISToken} from "../../../interfaces/ISToken.sol";
 import {Types} from "../types/Types.sol";
-
+import {WadRayMath} from "../math/WadRayMath.sol";
 library Validation {
+    using WadRayMath for uint256;
+
     function validateSetOperator(address operator) internal view {
         require(operator != msg.sender, "ERC7540Vault/cannot-set-self-as-operator");
     }
@@ -58,10 +60,13 @@ library Validation {
 
     // TODO: Add validation that takes into account the ltv ratio cap of the pool
     function validateInitLoan(
+        Types.Pool memory pool,
         uint256 principal,
         uint16 termMonths,
         uint256 interestRate
     ) internal pure {
+        uint256 ltvRatio = pool.aaveBorrowBalance.rayDiv(pool.aaveCollateralBalance + principal);
+        require(ltvRatio <= pool.ltvRatioCap, "PoolManager/ltv-ratio-too-high");
         require(principal > 0, "ERC7540Vault/invalid-principal");
         require(termMonths > 0, "ERC7540Vault/invalid-term-months");
         require(interestRate > 0, "ERC7540Vault/invalid-interest-rate");

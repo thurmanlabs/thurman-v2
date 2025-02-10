@@ -5,6 +5,7 @@ import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
 import {IVariableDebtToken} from "../../../interfaces/IVariableDebtToken.sol";
 import {WadRayMath} from "../math/WadRayMath.sol";
 import {Types} from "../types/Types.sol";
+import {Validation} from "./Validation.sol";
 
 
 library Loan {
@@ -20,6 +21,7 @@ library Loan {
     ) internal {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
+        Validation.validateInitLoan(pool, principal, termMonths, interestRate);
         vault.initLoan(borrower, principal, termMonths, interestRate);
         IVariableDebtToken variableDebtToken = IVariableDebtToken(pool.variableDebtToken);
         uint256 aaveBorrowBalance = variableDebtToken.balanceOf(pool.vault);

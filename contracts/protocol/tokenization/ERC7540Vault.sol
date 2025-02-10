@@ -187,7 +187,6 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         uint16 termMonths,
         uint256 interestRate
     ) external onlyPoolManager {
-        Validation.validateInitLoan(principal, termMonths, interestRate);
         uint256 monthlyPayment = _calculateMonthlyPayment(principal, interestRate, termMonths);
         uint256 currentBorrowerRate = IPool(aavePool).getReserveData(asset()).currentStableBorrowRate;
         uint256 loanId = nextLoanId++;
