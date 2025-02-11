@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
+import {IPool} from "../../../interfaces/IPool.sol";
 import {IVariableDebtToken} from "../../../interfaces/IVariableDebtToken.sol";
 import {WadRayMath} from "../math/WadRayMath.sol";
 import {Types} from "../types/Types.sol";
@@ -37,8 +38,11 @@ library Loan {
     ) internal {  
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
-        vault.repay(assets, msg.sender, onBehalfOf, loanId);
+        (uint256 remainingInterest, uint256 interestRate) = vault.repay(assets, msg.sender, onBehalfOf, loanId);
         pool.aaveBorrowBalance = IVariableDebtToken(pool.variableDebtToken).balanceOf(pool.vault);
         pool.ltvRatio = pool.aaveBorrowBalance.rayDiv(pool.aaveCollateralBalance);
+        uint256 accruedToTreasury = remainingInterest.rayMul(pool.marginFee.rayDiv(interestRate));
+        pool.accruedToTreasury += accruedToTreasury;
+        IPool(pool.aavePool).supply(pool.underlyingAsset, accruedToTreasury, pool.vault, 0);
     }
 }

@@ -18,7 +18,7 @@ contract SToken is ISToken, ERC20Upgradeable {
     address public aavePool;
     address public vault;
     address public poolManager;
-
+    address public treasury;
     modifier onlyAuthorized() {
         require(_msgSender() == vault || _msgSender() == poolManager, "SToken/only-authorized");
         _;
@@ -36,6 +36,7 @@ contract SToken is ISToken, ERC20Upgradeable {
         address _underlyingAsset,
         address _aavePool,
         address _poolManager,
+        address _treasury,
         string memory _name,
         string memory _symbol
     ) external initializer {
@@ -45,6 +46,7 @@ contract SToken is ISToken, ERC20Upgradeable {
         underlyingAsset = _underlyingAsset;
         aavePool = _aavePool;
         poolManager = _poolManager;
+        treasury = _treasury;
     }
 
     function mint(
@@ -65,6 +67,14 @@ contract SToken is ISToken, ERC20Upgradeable {
         emit Mint(caller, onBehalfOf, amountToMint, balanceIncrease, index);
 
         return (scaledBalance == 0);
+  }
+
+  function mintToTreasury(uint256 amount, uint256 index) external onlyAuthorized {
+    uint256 amountScaled = amount.rayDiv(index);
+    require(amountScaled > 0, "SToken/invalid-mint-amount");
+    _mint(treasury, amountScaled.toUint128());
+    emit Transfer(address(0), treasury, amountScaled);
+    emit Mint(msg.sender, treasury, amountScaled, amountScaled, index);
   }
 
   function burn(

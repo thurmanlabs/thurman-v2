@@ -219,7 +219,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         address caller,
         address onBehalfOf,
         uint256 loanId
-    ) external onlyPoolManager {
+    ) external onlyPoolManager returns (uint256 remainingInterest, uint256 interestRate) {
         Types.Loan storage loan = loans[onBehalfOf][loanId];
         require(loan.status == Types.Status.Active, "ERC7540Vault/loan-not-active");
         require(loan.remainingBalance >= assets, "ERC7540Vault/insufficient-loan-balance");
@@ -243,8 +243,6 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
             loan.status = Types.Status.Closed;
         }
 
-        // TODO: Create a method to split payments between Aave and Thurman Protocol
-
         uint256 currentBorrowerIndex = IPool(aavePool).getReserveData(asset()).variableBorrowIndex;
         uint256 balanceIncrease = loan.aaveBalance
             .rayMul(currentBorrowerIndex.rayDiv(loan.currentBorrowerIndex) - WadRayMath.RAY);
@@ -252,15 +250,13 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
 
         uint256 aavePaymentAmount = principal + balanceIncrease;
         
-        IERC20(asset()).transferFrom(caller, address(this), aavePaymentAmount);
-
+        IERC20(asset()).transferFrom(caller, address(this), assets);
         IPool(aavePool).repay(asset(), aavePaymentAmount, 2, address(this));
-
-        
         loan.aaveBalance = loan.aaveBalance + balanceIncrease - aavePaymentAmount;
         IDToken(dToken).burn(onBehalfOf, principal);
 
         emit LoanRepaid(loanId, onBehalfOf, principal, interest);
+        return (interest - balanceIncrease, loan.interestRate);
     }
 
     function pendingRedeemRequest(uint256, address controller) external view returns (uint256) {

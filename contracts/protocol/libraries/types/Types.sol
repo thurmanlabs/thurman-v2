@@ -126,10 +126,16 @@ library Types {
     struct Pool {
         /// @dev The address of the vault
         address vault;
+        /// @dev The address of the aave pool
+        address aavePool;
+        /// @dev The address of the underlying asset
+        address underlyingAsset;
         /// @dev The address of the aave aToken
         address aToken;
         /// @dev The address of the variable debt token
         address variableDebtToken;
+        /// @dev The address of the sToken
+        address sToken;
         /// @dev The balance of the aave collateral
         uint256 aaveCollateralBalance;
         /// @dev The balance of the aave borrow
@@ -140,5 +146,9 @@ library Types {
         uint256 ltvRatioCap;
         /// @dev The collateral cushion for individual loans expressed in ray
         uint256 collateralCushion;
+        /// @dev The accrued to treasury
+        uint256 accruedToTreasury;
+        /// @dev The margin fee accrued to treasury
+        uint256 marginFee;
     }
 }

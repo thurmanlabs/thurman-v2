@@ -34,6 +34,8 @@ interface ISToken is IERC20 {
     uint256 index
   ) external returns (bool);
 
+  function mintToTreasury(uint256 amount, uint256 index) external;
+
   /**
    * @notice Burns sTokens from `user` and sends the equivalent amount of underlying to `receiverOfUnderlying`
    * @dev In some instances, the mint event could be emitted from a burn transaction

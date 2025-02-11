@@ -247,7 +247,7 @@ interface IERC7540Vault is IERC4626 {
         address caller,
         address onBehalfOf,
         uint256 loanId
-    ) external;
+    ) external returns (uint256 remainingInterest, uint256 interestRate);
 
     /**
      * @dev Returns the address of the share token.

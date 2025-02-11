@@ -4,6 +4,9 @@ pragma solidity ^0.8.24;
 import {Types} from "../protocol/libraries/types/Types.sol";
 
 interface IPoolManager {
+    event PoolAdded(uint16 indexed poolId, address indexed vault, address indexed underlyingAsset);
+    event MintedToTreasury(uint16 indexed poolId, uint256 amountMinted);
+    
     /**
      * @dev Transfers assets from sender into the Vault attached to the pool and submits a Request for asynchronous deposit.
      *
@@ -102,7 +105,23 @@ interface IPoolManager {
     * @param collateralCushion The collateral cushion for the pool
     * @param ltvRatioCap The ltv ratio cap for the pool
     */
-    function addPool(address vault, uint256 collateralCushion, uint256 ltvRatioCap) external;
+    function addPool(
+        address vault,
+        address aavePool,
+        address underlyingAsset,
+        address aToken,
+        address variableDebtToken,
+        address sToken,
+        uint256 collateralCushion,
+        uint256 ltvRatioCap
+    ) external;
+
+    /**
+     * @dev Mints sTokens to the treasury
+     * @param poolId The ID of the pool to mint to
+     * @param amount The amount of sTokens to mint
+     */
+    function mintToTreasury(uint16 poolId, uint256 amount) external;
 
     /**
      * @dev Returns boolean telling if the address is the owner of the pool manager

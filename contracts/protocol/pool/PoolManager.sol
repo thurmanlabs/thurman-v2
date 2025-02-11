@@ -24,8 +24,28 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         _poolCount = 0;
     }
 
-    function addPool(address vault, uint256 collateralCushion, uint256 ltvRatioCap) external onlyOwner {
-        if (Pool.addPool(_pools, vault, collateralCushion, ltvRatioCap, _poolCount)) {
+    function addPool(
+        address vault,
+        address aavePool,
+        address underlyingAsset,
+        address aToken,
+        address variableDebtToken,
+        address sToken,
+        uint256 collateralCushion,
+        uint256 ltvRatioCap
+    ) external onlyOwner {
+        if (Pool.addPool(
+                _pools, 
+                vault, 
+                aavePool, 
+                underlyingAsset, 
+                aToken, 
+                variableDebtToken, 
+                sToken, 
+                collateralCushion, 
+                ltvRatioCap, 
+                _poolCount
+            )) {
             _poolCount++;
         }
     }
@@ -71,6 +91,10 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         uint256 loanId
     ) external {
         Loan.repayLoan(_pools, poolId, assets, onBehalfOf, loanId);
+    }
+
+    function mintToTreasury(uint16 poolId, uint256 amount) external {
+        Pool.mintToTreasury(_pools, poolId, amount);
     }
 
     function getPool(uint16 poolId) external view returns (Types.Pool memory) {
