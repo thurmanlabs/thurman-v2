@@ -100,6 +100,17 @@ interface IPoolManager {
     ) external;
 
     /**
+     * @dev Guarantees the loan pool for a given vault.
+     *
+     * @param poolId the id of the pool to guarantee
+     * @param assets the amount of assets to guarantee
+     */
+    function guarantee(
+        uint16 poolId,
+        uint256 assets
+    ) external;
+
+    /**
     * @dev Adds a new pool to the pool manager
     * @param vault The address of the vault to add
     * @param collateralCushion The collateral cushion for the pool

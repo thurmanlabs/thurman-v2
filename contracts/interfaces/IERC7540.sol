@@ -57,7 +57,12 @@ interface IERC7540Vault is IERC4626 {
         uint256 principalPaid,
         uint256 interestPaid
     );
-    
+
+    event PoolGuaranteed(
+        address indexed vault,
+        address indexed caller,
+        uint256 assets
+    );
 
     /**
      * @dev Sets or removes an operator for the caller.
@@ -248,6 +253,17 @@ interface IERC7540Vault is IERC4626 {
         address onBehalfOf,
         uint256 loanId
     ) external returns (uint256 remainingInterest, uint256 interestRate);
+
+    /**
+     * @dev Guarantees the loan pool for a given vault.
+     *
+     * @param assets the amount of assets to guarantee
+     * @param caller the address of the caller guaranteeing the loan
+     */
+    function guarantee(
+        uint256 assets,
+        address caller
+    ) external;
 
     /**
      * @dev Returns the address of the share token.

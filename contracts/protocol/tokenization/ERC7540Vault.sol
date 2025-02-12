@@ -259,6 +259,13 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         return (interest - balanceIncrease, loan.interestRate);
     }
 
+    function guarantee(uint256 assets, address caller) external onlyPoolManager {
+        Validation.validateGuarantee(address(this), assets);
+        IERC20(asset()).transferFrom(caller, address(this), assets);
+        IPool(aavePool).supply(asset(), assets, address(this), 0);
+        emit PoolGuaranteed(address(this), caller, assets);
+    }
+
     function pendingRedeemRequest(uint256, address controller) external view returns (uint256) {
         return userVaultData[controller].pendingRedeemRequest;
     }
@@ -303,10 +310,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         // Convert principal to RAY
         uint256 principalRay = WadRayMath.wadToRay(principal);
         
-        // Interest rate should NOT be converted to RAY first
-        // 600 basis points = 0.06 = 6%
-        uint256 annualRate = interestRate * WadRayMath.RAY / 10000; // Convert from basis points to RAY decimal
-        uint256 monthlyRate = annualRate / 12;  // Convert to monthly rate
+        uint256 monthlyRate = interestRate.rayDiv(12);  // Convert to monthly rate
         
         // Debug requires
         require(monthlyRate > 0, "Monthly rate is 0");
@@ -331,7 +335,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
 
     function _getMonthlyInterest(Types.Loan memory loan) public pure returns (uint256) {
         uint256 remainingBalance = loan.remainingBalance;
-        return remainingBalance.rayMul(loan.interestRate).rayDiv(12).rayDiv(10000);
+        return remainingBalance.rayMul(loan.interestRate).rayDiv(12);
     }
 
      // Helper function to get days in month

@@ -78,7 +78,7 @@ library Types {
         uint256 collateralAllocated;
         /// @dev Principal amount of the loan
         uint256 principal;
-        /// @dev Annual interest rate in basis points (e.g., 600 = 6%)
+        /// @dev Annual interest rate in ray
         uint256 interestRate;
         /// @dev Term of the loan in months
         uint16 termMonths;
@@ -146,6 +146,8 @@ library Types {
         uint256 ltvRatioCap;
         /// @dev The collateral cushion for individual loans expressed in ray
         uint256 collateralCushion;
+        /// @dev The amount guaranteed by the pool
+        uint256 amountGuaranteed;
         /// @dev The accrued to treasury
         uint256 accruedToTreasury;
         /// @dev The margin fee accrued to treasury

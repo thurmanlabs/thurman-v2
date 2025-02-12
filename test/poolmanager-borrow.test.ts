@@ -65,7 +65,7 @@ describe("PoolManager Borrow", () => {
             const poolId = 0;
             const amount = ethers.parseUnits("10", 6);        // 10 USDC
             const loanAmount = ethers.parseUnits("1", 6);     // 1 USDC
-            const interestRate = 600;                         // 6% (600 basis points)
+            const interestRate = ethers.parseEther("0.06");
             await deposit(testEnv, amount, userIndex);
             expect(await poolManager.connect(deployer)
                 .initLoan(poolId, users[borrowerIndex].address, loanAmount, 12, interestRate))
@@ -79,7 +79,7 @@ describe("PoolManager Borrow", () => {
             const poolId = 0;
             const amount = ethers.parseUnits("10", 6);
             const loanAmount = ethers.parseUnits("1", 6);
-            const interestRate = 600;
+            const interestRate = ethers.parseEther("0.06");
             
             // Setup initial balances
             await deposit(testEnv, amount, userIndex);
@@ -109,6 +109,4 @@ describe("PoolManager Borrow", () => {
                 .to.emit(vault, "LoanRepaid");
         });
     });
-    
-    
 });

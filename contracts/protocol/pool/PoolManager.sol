@@ -93,6 +93,13 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         Loan.repayLoan(_pools, poolId, assets, onBehalfOf, loanId);
     }
 
+    function guarantee(
+        uint16 poolId,
+        uint256 assets
+    ) external {
+        Deposit.guarantee(_pools, poolId, assets);
+    }
+    
     function mintToTreasury(uint16 poolId, uint256 amount) external {
         Pool.mintToTreasury(_pools, poolId, amount);
     }

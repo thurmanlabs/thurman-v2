@@ -71,5 +71,14 @@ library Validation {
         require(termMonths > 0, "ERC7540Vault/invalid-term-months");
         require(interestRate > 0, "ERC7540Vault/invalid-interest-rate");
     }
+
+    function validateGuarantee(
+        address vaultAddress,
+        uint256 assets
+    ) internal view {
+        IERC7540Vault vault = IERC7540Vault(vaultAddress);
+        require(assets > 0, "ERC7540Vault/invalid-assets");
+        require(assets <= IERC20(vault.asset()).balanceOf(msg.sender), "ERC7540Vault/insufficient-assets");
+    }
         
 }
