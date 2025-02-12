@@ -24,6 +24,7 @@ library Pool {
         address sToken,
         uint256 collateralCushion,
         uint256 ltvRatioCap,
+        uint256 baseRate,
         uint16 poolCount
     ) internal returns (bool) {
         pools[poolCount].vault = vault;
@@ -34,7 +35,7 @@ library Pool {
         pools[poolCount].sToken = sToken;
         pools[poolCount].collateralCushion = collateralCushion;
         pools[poolCount].ltvRatioCap = ltvRatioCap;
-        
+        pools[poolCount].baseRate = baseRate;
         emit PoolAdded(poolCount, vault, underlyingAsset);
         return true;
     }

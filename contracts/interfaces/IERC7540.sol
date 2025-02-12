@@ -227,32 +227,36 @@ interface IERC7540Vault is IERC4626 {
      * @dev Initializes a loan for a borrower.
      *
      * @param borrower the address of the borrower
+     * @param collateralAllocated the collateral allocated to the loan
      * @param principal the principal amount of the loan
      * @param termMonths the term of the loan in months
-     * @param interestRate the interest rate of the loan
+     * @param projectedLossRate the projected loss rate of the loan
      */
     function initLoan(
         address borrower,
         uint256 collateralAllocated,
         uint256 principal, 
         uint16 termMonths,
-        uint256 interestRate
+        uint256 projectedLossRate,
+        uint256 baseRate
     ) external;
 
     /**
      * @dev Repays a loan for a given borrower.
      *
+     * @param pool the pool of the loan
      * @param assets the amount of assets to repay
      * @param caller the address of the caller repaying the loan
      * @param onBehalfOf the address of the borrower
      * @param loanId the ID of the loan
      */
     function repay(
+        Types.Pool memory pool,
         uint256 assets, 
         address caller,
         address onBehalfOf,
         uint256 loanId
-    ) external returns (uint256 remainingInterest, uint256 interestRate);
+    ) external returns (uint256 remainingInterest, uint256 interestRate); 
 
     /**
      * @dev Guarantees the loan pool for a given vault.
@@ -279,6 +283,15 @@ interface IERC7540Vault is IERC4626 {
      * @return userVaultData the user vault data
      */
     function getUserVaultData(address user) external view returns (Types.UserVaultData memory);
+
+    /**
+     * @dev Returns the loan data for a given borrower and loan ID.
+     *
+     * @param borrower the address of the borrower
+     * @param loanId the ID of the loan
+     * @return loan the loan data
+     */
+    function getLoan(address borrower, uint256 loanId) external view returns (Types.Loan memory);
 
     /**
      * @dev Converts assets to shares.

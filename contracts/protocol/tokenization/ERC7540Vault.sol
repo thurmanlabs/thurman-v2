@@ -12,10 +12,11 @@ import {Types} from "../libraries/types/Types.sol";
 import {Validation} from "../libraries/services/Validation.sol";
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
 import {MathUtils} from "../libraries/math/MathUtils.sol";
-
+import {InterestRate} from "../libraries/services/InterestRate.sol";
 contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     using WadRayMath for uint256;
     using SafeCast for uint256;
+    using InterestRate for Types.Loan;
 
     modifier onlyPoolManager() {
         require(msg.sender == poolManager, "ERC7540Vault/only-pool-manager");
@@ -186,8 +187,10 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         uint256 collateralAllocated,
         uint256 principal, 
         uint16 termMonths,
-        uint256 interestRate
+        uint256 projectedLossRate,
+        uint256 baseRate
     ) external onlyPoolManager {
+        uint256 interestRate = baseRate + projectedLossRate;
         uint256 monthlyPayment = _calculateMonthlyPayment(principal, interestRate, termMonths);
         uint256 currentBorrowerIndex = IPool(aavePool).getReserveData(asset()).variableBorrowIndex;
         uint256 loanId = nextLoanId++;
@@ -195,6 +198,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
             id: loanId,
             collateralAllocated: collateralAllocated,
             principal: principal,
+            projectedLossRate: projectedLossRate,
             interestRate: interestRate,
             termMonths: termMonths,
             nextPaymentDate: uint40(block.timestamp + 30 days),
@@ -215,6 +219,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     }
 
     function repay(
+        Types.Pool memory pool,
         uint256 assets,
         address caller,
         address onBehalfOf,
@@ -224,6 +229,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         require(loan.status == Types.Status.Active, "ERC7540Vault/loan-not-active");
         require(loan.remainingBalance >= assets, "ERC7540Vault/insufficient-loan-balance");
         loan.currentPaymentIndex++;
+        (remainingInterest, interestRate) = loan.getCurrentMonthlyPayment(pool);
         uint256 interest = _getMonthlyInterest(loan);
         uint256 principal = assets - interest;
         uint256 daysInMonth = _getDaysInMonth(loan.nextPaymentDate);
@@ -256,7 +262,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         IDToken(dToken).burn(onBehalfOf, principal);
 
         emit LoanRepaid(loanId, onBehalfOf, principal, interest);
-        return (interest - balanceIncrease, loan.interestRate);
+        return (interest - balanceIncrease, loan.interestRate); 
     }
 
     function guarantee(uint256 assets, address caller) external onlyPoolManager {
@@ -280,6 +286,10 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
 
     function getUserVaultData(address user) external view returns (Types.UserVaultData memory) {
         return userVaultData[user];
+    }
+
+    function getLoan(address borrower, uint256 loanId) external view returns (Types.Loan memory loan) {
+        return loans[borrower][loanId];
     }
 
     function convertToShares(uint256 assets) 

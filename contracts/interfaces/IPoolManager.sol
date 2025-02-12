@@ -115,6 +115,7 @@ interface IPoolManager {
     * @param vault The address of the vault to add
     * @param collateralCushion The collateral cushion for the pool
     * @param ltvRatioCap The ltv ratio cap for the pool
+    * @param baseRate The base interest rate for loans in the pool
     */
     function addPool(
         address vault,
@@ -124,7 +125,8 @@ interface IPoolManager {
         address variableDebtToken,
         address sToken,
         uint256 collateralCushion,
-        uint256 ltvRatioCap
+        uint256 ltvRatioCap,
+        uint256 baseRate
     ) external;
 
     /**

@@ -32,7 +32,8 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         address variableDebtToken,
         address sToken,
         uint256 collateralCushion,
-        uint256 ltvRatioCap
+        uint256 ltvRatioCap,
+        uint256 baseRate
     ) external onlyOwner {
         if (Pool.addPool(
                 _pools, 
@@ -44,6 +45,7 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
                 sToken, 
                 collateralCushion, 
                 ltvRatioCap, 
+                baseRate,
                 _poolCount
             )) {
             _poolCount++;

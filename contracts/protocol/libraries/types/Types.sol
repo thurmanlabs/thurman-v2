@@ -79,6 +79,8 @@ library Types {
         /// @dev Principal amount of the loan
         uint256 principal;
         /// @dev Annual interest rate in ray
+        uint256 projectedLossRate;
+        /// @dev Annual interest rate in ray
         uint256 interestRate;
         /// @dev Term of the loan in months
         uint16 termMonths;
@@ -140,6 +142,8 @@ library Types {
         uint256 aaveCollateralBalance;
         /// @dev The balance of the aave borrow
         uint256 aaveBorrowBalance;
+        /// @dev The base interest rate of loans in the pool
+        uint256 baseRate;
         /// @dev The ltv ratio
         uint256 ltvRatio;
         /// @dev The ltv ratio cap
