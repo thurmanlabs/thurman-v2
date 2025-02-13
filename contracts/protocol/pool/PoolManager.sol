@@ -29,24 +29,24 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         address vault,
         address aavePool,
         address underlyingAsset,
-        address aToken,
-        address variableDebtToken,
         address sToken,
         uint256 collateralCushion,
         uint256 ltvRatioCap,
-        uint256 baseRate
+        uint256 baseRate,
+        uint256 liquidityPremiumRate,
+        uint256 marginFee
     ) external onlyOwner {
         if (Pool.addPool(
                 _pools, 
                 vault, 
                 aavePool, 
                 underlyingAsset, 
-                aToken, 
-                variableDebtToken, 
                 sToken, 
                 collateralCushion, 
                 ltvRatioCap, 
                 baseRate,
+                liquidityPremiumRate,
+                marginFee,
                 _poolCount
             )) {
             _poolCount++;

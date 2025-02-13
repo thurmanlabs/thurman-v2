@@ -227,14 +227,12 @@ interface IERC7540Vault is IERC4626 {
      * @dev Initializes a loan for a borrower.
      *
      * @param borrower the address of the borrower
-     * @param collateralAllocated the collateral allocated to the loan
      * @param principal the principal amount of the loan
      * @param termMonths the term of the loan in months
      * @param projectedLossRate the projected loss rate of the loan
      */
     function initLoan(
         address borrower,
-        uint256 collateralAllocated,
         uint256 principal, 
         uint16 termMonths,
         uint256 projectedLossRate,
@@ -244,14 +242,18 @@ interface IERC7540Vault is IERC4626 {
     /**
      * @dev Repays a loan for a given borrower.
      *
-     * @param pool the pool of the loan
+     * @param amountGuaranteed the amount guaranteed by the pool
+     * @param aaveBorrowBalance the balance of the aave borrow
+     * @param baseRate the base rate of the loan
      * @param assets the amount of assets to repay
      * @param caller the address of the caller repaying the loan
      * @param onBehalfOf the address of the borrower
      * @param loanId the ID of the loan
      */
     function repay(
-        Types.Pool memory pool,
+        uint256 amountGuaranteed,
+        uint256 aaveBorrowBalance,
+        uint256 baseRate,
         uint256 assets, 
         address caller,
         address onBehalfOf,

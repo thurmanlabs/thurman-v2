@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
 import {IAToken} from "../../../interfaces/IAToken.sol";
+import {IPool} from "../../../interfaces/IPool.sol";
 import {Types} from "../types/Types.sol";
 import {WadRayMath} from "../math/WadRayMath.sol";
 import {IVariableDebtToken} from "../../../interfaces/IVariableDebtToken.sol";
@@ -31,8 +32,10 @@ library Deposit {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         vault.fulfillDepositRequest(assets, receiver);
-        pool.aaveCollateralBalance = IAToken(pool.aToken).balanceOf(pool.vault);
-        pool.ltvRatio = pool.aaveBorrowBalance.rayDiv(pool.aaveCollateralBalance);
+        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(pool.underlyingAsset);
+        uint256 aaveCollateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
+        uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
+        pool.ltvRatio = aaveBorrowBalance.rayDiv(aaveCollateralBalance);
     }
 
     function deposit(
@@ -69,9 +72,10 @@ library Deposit {
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         uint256 shares = vault.convertToShares(assets);
         vault.fulfillRedeemRequest(shares, receiver);
-        pool.aaveCollateralBalance = IAToken(pool.aToken).balanceOf(pool.vault);
-        pool.aaveBorrowBalance = IVariableDebtToken(pool.variableDebtToken).balanceOf(pool.vault);
-        pool.ltvRatio = pool.aaveBorrowBalance.rayDiv(pool.aaveCollateralBalance);
+        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(pool.underlyingAsset);
+        uint256 aaveCollateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
+        uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
+        pool.ltvRatio = aaveBorrowBalance.rayDiv(aaveCollateralBalance);
     }
 
     function redeem(

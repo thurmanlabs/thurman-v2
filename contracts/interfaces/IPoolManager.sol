@@ -116,17 +116,19 @@ interface IPoolManager {
     * @param collateralCushion The collateral cushion for the pool
     * @param ltvRatioCap The ltv ratio cap for the pool
     * @param baseRate The base interest rate for loans in the pool
+    * @param liquidityPremiumRate The liquidity premium rate for the pool
+    * @param marginFee The margin fee for the pool
     */
     function addPool(
         address vault,
         address aavePool,
         address underlyingAsset,
-        address aToken,
-        address variableDebtToken,
         address sToken,
         uint256 collateralCushion,
         uint256 ltvRatioCap,
-        uint256 baseRate
+        uint256 baseRate,
+        uint256 liquidityPremiumRate,
+        uint256 marginFee
     ) external;
 
     /**

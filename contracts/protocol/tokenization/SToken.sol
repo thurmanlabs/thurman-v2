@@ -20,6 +20,7 @@ contract SToken is ISToken, ERC20Upgradeable {
     address public poolManager;
     address public treasury;
     uint16 public poolId;
+    
     modifier onlyAuthorized() {
         require(_msgSender() == vault || _msgSender() == poolManager, "SToken/only-authorized");
         _;

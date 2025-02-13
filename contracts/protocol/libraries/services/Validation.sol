@@ -65,8 +65,7 @@ library Validation {
         uint16 termMonths,
         uint256 interestRate
     ) internal pure {
-        uint256 ltvRatio = pool.aaveBorrowBalance.rayDiv(pool.aaveCollateralBalance + principal);
-        require(ltvRatio <= pool.ltvRatioCap, "PoolManager/ltv-ratio-too-high");
+        require(pool.ltvRatio <= pool.config.ltvRatioCap, "PoolManager/ltv-ratio-too-high");
         require(principal > 0, "ERC7540Vault/invalid-principal");
         require(termMonths > 0, "ERC7540Vault/invalid-term-months");
         require(interestRate > 0, "ERC7540Vault/invalid-interest-rate");

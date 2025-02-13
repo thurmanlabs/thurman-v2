@@ -72,37 +72,32 @@ library Types {
     }
 
     struct Loan {
-        /// @dev Loan ID
-        uint256 id;
-        /// @dev collateral allocated to the loan
-        uint256 collateralAllocated;
-        /// @dev Principal amount of the loan
-        uint256 principal;
-        /// @dev Annual interest rate in ray
-        uint256 projectedLossRate;
-        /// @dev Annual interest rate in ray
-        uint256 interestRate;
-        /// @dev Term of the loan in months
-        uint16 termMonths;
-        /// @dev Next payment date
-        uint40 nextPaymentDate;
-        /// @dev Remaining balance of the loan
-        uint256 remainingBalance;
-        /// @dev Remaining balance in aave
-        uint256 aaveBalance;
-        /// @dev Current payment index
-        uint16 currentPaymentIndex;
-        /// @dev Monthly payment amount
-        uint256 monthlyPayment;
-        /// @dev Remaining monthly payment
-        uint256 remainingMonthlyPayment;
-        /// @dev Status of the loan
-        Status status;
-        /// @dev Aave's current variable borrower index
-        uint256 currentBorrowerIndex;
-        /// @dev Timestamp of last update
-        uint40 lastUpdateTimestamp;
-        
+        // Slot 1: Core loan data (256 bits)
+        uint96 id;                  // 96 bits
+        uint16 termMonths;          // 16 bits
+        uint16 currentPaymentIndex; // 16 bits
+        Status status;              // 8 bits
+        // 24 bits padding
+
+        // Slot 2: Principal and balance (256 bits)
+        uint128 principal;          // 128 bits
+        uint128 remainingBalance;   // 128 bits
+
+        // Slot 3: Rates (256 bits)
+        uint128 projectedLossRate;  // 128 bits
+        uint128 interestRate;       // 128 bits
+
+        // Slot 4: Payments (256 bits)
+        uint128 monthlyPayment;     // 128 bits
+        uint128 remainingMonthlyPayment; // 128 bits
+
+        // Slot 5: Timestamps and index (256 bits)
+        uint40 nextPaymentDate;     // 40 bits
+        uint40 lastUpdateTimestamp; // 40 bits
+        uint176 currentBorrowerIndex; // 176 bits
+
+        // Slot 6: Aave balance (256 bits)
+        uint256 aaveBalance;        // Full slot
     }
 
     enum Status {
@@ -126,41 +121,47 @@ library Types {
     }
 
     struct Pool {
+        /// @dev The address of the pool config
+        PoolConfig config;
         /// @dev The address of the vault
         address vault;
         /// @dev The address of the aave pool
         address aavePool;
         /// @dev The address of the underlying asset
         address underlyingAsset;
-        /// @dev The address of the aave aToken
-        address aToken;
-        /// @dev The address of the variable debt token
-        address variableDebtToken;
         /// @dev The address of the sToken
         address sToken;
-        /// @dev The balance of the aave collateral
-        uint256 aaveCollateralBalance;
-        /// @dev The balance of the aave borrow
-        uint256 aaveBorrowBalance;
-        /// @dev The base interest rate of loans in the pool
-        uint256 baseRate;
-        /// @dev The ltv ratio
+        /// @dev The ltv ratio of Thurman's aave collateral and borrows
         uint256 ltvRatio;
-        /// @dev The ltv ratio cap
-        uint256 ltvRatioCap;
-        /// @dev The collateral cushion for individual loans expressed in ray
-        uint256 collateralCushion;
         /// @dev The amount guaranteed by the pool
         uint256 amountGuaranteed;
         /// @dev The accrued to treasury
         uint256 accruedToTreasury;
         /// @dev The margin fee accrued to treasury
         uint256 marginFee;
-        /// @dev The liquidity premium index added on top of Aave yield
-        uint256 liquidityPremiumIndex;
-        /// @dev The liquidity premium rate
-        uint256 liquidityPremiumRate;
         /// @dev The last update timestamp of the liquidity premium index
         uint40 lastUpdateTimestamp;
+        /// @dev The liquidity premium index
+        uint256 liquidityPremiumIndex;
+    }
+
+    struct PoolConfig {
+        /// @dev The base interest rate of loans in the pool
+        uint256 baseRate;
+        /// @dev The ltv ratio cap
+        uint256 ltvRatioCap;
+        /// @dev The collateral cushion for individual loans expressed in ray
+        uint256 collateralCushion;
+        /// @dev The margin fee accrued to treasury
+        uint256 marginFee;
+        /// @dev The liquidity premium rate
+        uint256 liquidityPremiumRate;
+    }
+
+    struct MonthlyPaymentVars {
+        uint256 monthlyRate;
+        uint256 rateFactor;
+        uint256 rateFactorPower;
+        uint256 principalRay;
     }
 }

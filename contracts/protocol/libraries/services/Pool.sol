@@ -20,23 +20,23 @@ library Pool {
         address vault,
         address aavePool,
         address underlyingAsset,
-        address aToken,
-        address variableDebtToken,
         address sToken,
         uint256 collateralCushion,
         uint256 ltvRatioCap,
         uint256 baseRate,
+        uint256 liquidityPremiumRate,
+        uint256 marginFee,
         uint16 poolCount
     ) internal returns (bool) {
         pools[poolCount].vault = vault;
         pools[poolCount].aavePool = aavePool;
         pools[poolCount].underlyingAsset = underlyingAsset;
-        pools[poolCount].aToken = aToken;
-        pools[poolCount].variableDebtToken = variableDebtToken;
         pools[poolCount].sToken = sToken;
-        pools[poolCount].collateralCushion = collateralCushion;
-        pools[poolCount].ltvRatioCap = ltvRatioCap;
-        pools[poolCount].baseRate = baseRate;
+        pools[poolCount].config.collateralCushion = collateralCushion;
+        pools[poolCount].config.ltvRatioCap = ltvRatioCap;
+        pools[poolCount].config.baseRate = baseRate;
+        pools[poolCount].config.liquidityPremiumRate = liquidityPremiumRate;
+        pools[poolCount].config.marginFee = marginFee;
         pools[poolCount].liquidityPremiumIndex = WadRayMath.RAY;
         pools[poolCount].lastUpdateTimestamp = uint40(block.timestamp);
 
@@ -51,9 +51,9 @@ library Pool {
         Types.Pool storage pool = pools[poolId];
         uint256 utilizationRate = getUtilizationRate(pool);
         uint256 currentIndex = pool.liquidityPremiumIndex;
-        if (pool.liquidityPremiumRate != 0) {
+        if (pool.config.liquidityPremiumRate != 0) {
             uint256 cumulatedInterest = MathUtils.calculateLinearInterest(
-                pool.liquidityPremiumRate, 
+                pool.config.liquidityPremiumRate, 
                 pool.lastUpdateTimestamp
             );
             pool.liquidityPremiumIndex = currentIndex.rayMul(cumulatedInterest.rayMul(utilizationRate));
@@ -70,14 +70,15 @@ library Pool {
         }
 
         return MathUtils.calculateLinearInterest(
-            pool.liquidityPremiumRate, 
+            pool.config.liquidityPremiumRate, 
             pool.lastUpdateTimestamp
         ).rayMul(utilizationRate).rayMul(pool.liquidityPremiumIndex);
     }
 
     function getUtilizationRate(Types.Pool memory pool) internal view returns (uint256) {
-        uint256 collateralBalance = IAToken(pool.aToken).balanceOf(pool.vault);
-        uint256 borrowBalance = IVariableDebtToken(pool.variableDebtToken).balanceOf(pool.vault);
+        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(pool.underlyingAsset);
+        uint256 collateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
+        uint256 borrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
         return borrowBalance.rayDiv(collateralBalance);
     }
 
@@ -104,10 +105,11 @@ library Pool {
         uint16 poolId
     ) internal view returns (Types.Pool memory) {
         Types.Pool memory pool = pools[poolId];
-        IAToken aToken = IAToken(pool.aToken);
-        pool.aaveCollateralBalance = aToken.balanceOf(pool.vault);
-        pool.aaveBorrowBalance = IVariableDebtToken(pool.variableDebtToken).balanceOf(pool.vault);
-        pool.ltvRatio = pool.aaveBorrowBalance.rayDiv(pool.aaveCollateralBalance);
+        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(pool.underlyingAsset);
+        IAToken aToken = IAToken(reserveData.aTokenAddress);
+        uint256 aaveCollateralBalance = aToken.balanceOf(pool.vault);
+        uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
+        pool.ltvRatio = aaveBorrowBalance.rayDiv(aaveCollateralBalance);
         return pool;
     }
 }

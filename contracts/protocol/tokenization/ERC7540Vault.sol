@@ -59,7 +59,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         poolManager = _poolManager;
         dToken = _dToken;
         // Get aToken address and validate
-        address aToken = IPool(_aavePool).getReserveData(_asset).aTokenAddress;
+        Types.ReserveData memory reserveData = IPool(_aavePool).getReserveData(_asset);
+        address aToken = reserveData.aTokenAddress;
         require(aToken != address(0), "ERC7540Vault/invalid-atoken");
         
         // Set approvals during initialization
@@ -184,7 +185,6 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
 
     function initLoan(
         address borrower, 
-        uint256 collateralAllocated,
         uint256 principal, 
         uint16 termMonths,
         uint256 projectedLossRate,
@@ -192,23 +192,23 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     ) external onlyPoolManager {
         uint256 interestRate = baseRate + projectedLossRate;
         uint256 monthlyPayment = _calculateMonthlyPayment(principal, interestRate, termMonths);
-        uint256 currentBorrowerIndex = IPool(aavePool).getReserveData(asset()).variableBorrowIndex;
+        Types.ReserveData memory reserveData = IPool(aavePool).getReserveData(asset());
+        uint256 currentBorrowerIndex = reserveData.variableBorrowIndex;
         uint256 loanId = nextLoanId++;
         loans[borrower].push(Types.Loan({
-            id: loanId,
-            collateralAllocated: collateralAllocated,
-            principal: principal,
-            projectedLossRate: projectedLossRate,
-            interestRate: interestRate,
-            termMonths: termMonths,
+            id: uint96(loanId),
+            principal: uint128(principal),
+            projectedLossRate: uint128(projectedLossRate),
+            interestRate: uint128(interestRate),
+            termMonths: uint16(termMonths),
             nextPaymentDate: uint40(block.timestamp + 30 days),
-            remainingBalance: principal,
-            aaveBalance: principal,
-            remainingMonthlyPayment: monthlyPayment,
+            remainingBalance: uint128(principal),
+            aaveBalance: uint256(principal),
+            remainingMonthlyPayment: uint128(monthlyPayment),
             currentPaymentIndex: 0,
-            monthlyPayment: monthlyPayment,
+            monthlyPayment: uint128(monthlyPayment),
             status: Types.Status.Active,
-            currentBorrowerIndex: currentBorrowerIndex,
+            currentBorrowerIndex: uint176(currentBorrowerIndex),
             lastUpdateTimestamp: uint40(block.timestamp)
         }));
         IDToken(dToken).mint(borrower, principal);
@@ -219,26 +219,30 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     }
 
     function repay(
-        Types.Pool memory pool,
+        uint256 amountGuaranteed,
+        uint256 aaveBorrowBalance,
+        uint256 baseRate,
         uint256 assets,
         address caller,
         address onBehalfOf,
         uint256 loanId
     ) external onlyPoolManager returns (uint256 remainingInterest, uint256 interestRate) {
         Types.Loan storage loan = loans[onBehalfOf][loanId];
+        Types.ReserveData memory reserveData = IPool(aavePool).getReserveData(asset());
+        uint256 currentBorrowerIndex = reserveData.variableBorrowIndex;
         require(loan.status == Types.Status.Active, "ERC7540Vault/loan-not-active");
         require(loan.remainingBalance >= assets, "ERC7540Vault/insufficient-loan-balance");
         loan.currentPaymentIndex++;
-        (remainingInterest, interestRate) = loan.getCurrentMonthlyPayment(pool);
+        (remainingInterest, interestRate) = loan.getCurrentMonthlyPayment(amountGuaranteed, aaveBorrowBalance, baseRate);
         uint256 interest = _getMonthlyInterest(loan);
         uint256 principal = assets - interest;
         uint256 daysInMonth = _getDaysInMonth(loan.nextPaymentDate);
         
         if (principal > 0) {
-            loan.remainingBalance -= principal;
+            loan.remainingBalance = loan.remainingBalance - uint128(principal);
         }
         if (loan.remainingMonthlyPayment > assets) {
-            loan.remainingMonthlyPayment -= assets;
+            loan.remainingMonthlyPayment = loan.remainingMonthlyPayment - uint128(assets);
         } else {
             loan.remainingMonthlyPayment = 0;
         }
@@ -249,10 +253,9 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
             loan.status = Types.Status.Closed;
         }
 
-        uint256 currentBorrowerIndex = IPool(aavePool).getReserveData(asset()).variableBorrowIndex;
         uint256 balanceIncrease = loan.aaveBalance
             .rayMul(currentBorrowerIndex.rayDiv(loan.currentBorrowerIndex) - WadRayMath.RAY);
-        loan.currentBorrowerIndex = currentBorrowerIndex;
+        loan.currentBorrowerIndex = uint176(currentBorrowerIndex);
 
         uint256 aavePaymentAmount = principal + balanceIncrease;
         

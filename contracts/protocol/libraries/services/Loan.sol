@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
 import {IPool} from "../../../interfaces/IPool.sol";
 import {IVariableDebtToken} from "../../../interfaces/IVariableDebtToken.sol";
+import {IAToken} from "../../../interfaces/IAToken.sol";
 import {WadRayMath} from "../math/WadRayMath.sol";
 import {Types} from "../types/Types.sol";
 import {InterestRate} from "./InterestRate.sol";
@@ -23,12 +24,13 @@ library Loan {
     ) internal {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
-        Validation.validateInitLoan(pool, principal, termMonths, pool.baseRate + projectedLossRate);
-        uint256 adjustedLossRate = projectedLossRate.calculateAdjustedLossRate(principal, pool.aaveBorrowBalance);
-        uint256 collateralAllocated = principal.rayMul(pool.collateralCushion);
-        vault.initLoan(borrower, collateralAllocated, principal, termMonths, adjustedLossRate, pool.baseRate);
-        pool.aaveBorrowBalance = IVariableDebtToken(pool.variableDebtToken).balanceOf(pool.vault);
-        pool.ltvRatio = pool.aaveBorrowBalance.rayDiv(pool.aaveCollateralBalance);
+        Validation.validateInitLoan(pool, principal, termMonths, pool.config.baseRate + projectedLossRate);
+        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(pool.underlyingAsset);
+        uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
+        uint256 aaveCollateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
+        uint256 adjustedLossRate = projectedLossRate.calculateAdjustedLossRate(principal, aaveBorrowBalance);
+        vault.initLoan(borrower, principal, termMonths, adjustedLossRate, pool.config.baseRate); 
+        pool.ltvRatio = aaveBorrowBalance.rayDiv(aaveCollateralBalance);
     }
 
     function repayLoan(
@@ -40,13 +42,13 @@ library Loan {
     ) internal {  
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
-        // TODO: Get loan from vault storage for recalculating monthly payments and interest rate
-        Types.Loan storage loan = vault.getLoan(onBehalfOf, loanId);
-        (uint256 remainingInterest, uint256 interestRate) = vault.repay(pool, assets, msg.sender, onBehalfOf, loanId);
-        pool.aaveBorrowBalance = IVariableDebtToken(pool.variableDebtToken).balanceOf(pool.vault);
-        pool.ltvRatio = pool.aaveBorrowBalance.rayDiv(pool.aaveCollateralBalance);
+        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(pool.underlyingAsset);
+        uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
+        (uint256 remainingInterest, uint256 interestRate) = vault.repay(pool.amountGuaranteed, aaveBorrowBalance, pool.config.baseRate, assets, msg.sender, onBehalfOf, loanId);
+        uint256 aaveCollateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
+        pool.ltvRatio = aaveBorrowBalance.rayDiv(aaveCollateralBalance);
         uint256 accruedToTreasury = remainingInterest.rayMul(pool.marginFee.rayDiv(interestRate));
         pool.accruedToTreasury += accruedToTreasury;
-        IPool(pool.aavePool).supply(pool.underlyingAsset, accruedToTreasury, pool.vault, 0);
+        IPool(pool.aavePool).supply(pool.underlyingAsset, accruedToTreasury, pool.vault, 0); 
     }
 }
