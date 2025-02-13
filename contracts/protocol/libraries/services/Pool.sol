@@ -7,6 +7,7 @@ import {IAToken} from "../../../interfaces/IAToken.sol";
 import {IPool} from "../../../interfaces/IPool.sol";
 import {WadRayMath} from "../math/WadRayMath.sol";
 import {ISToken} from "../../../interfaces/ISToken.sol";
+import {MathUtils} from "../math/MathUtils.sol";
 
 library Pool {
     using WadRayMath for uint256;
@@ -36,8 +37,48 @@ library Pool {
         pools[poolCount].collateralCushion = collateralCushion;
         pools[poolCount].ltvRatioCap = ltvRatioCap;
         pools[poolCount].baseRate = baseRate;
+        pools[poolCount].liquidityPremiumIndex = WadRayMath.RAY;
+        pools[poolCount].lastUpdateTimestamp = uint40(block.timestamp);
+
         emit PoolAdded(poolCount, vault, underlyingAsset);
         return true;
+    }
+
+    function update(
+        mapping(uint16 => Types.Pool) storage pools,
+        uint16 poolId
+    ) internal {
+        Types.Pool storage pool = pools[poolId];
+        uint256 utilizationRate = getUtilizationRate(pool);
+        uint256 currentIndex = pool.liquidityPremiumIndex;
+        if (pool.liquidityPremiumRate != 0) {
+            uint256 cumulatedInterest = MathUtils.calculateLinearInterest(
+                pool.liquidityPremiumRate, 
+                pool.lastUpdateTimestamp
+            );
+            pool.liquidityPremiumIndex = currentIndex.rayMul(cumulatedInterest.rayMul(utilizationRate));
+        }
+        pool.lastUpdateTimestamp = uint40(block.timestamp);
+    }
+
+    function getNormalizedReturn(Types.Pool memory pool) internal view returns (uint256) {
+        uint40 timestamp = pool.lastUpdateTimestamp;
+        uint256 utilizationRate = getUtilizationRate(pool);
+
+        if (timestamp == block.timestamp) {
+            return pool.liquidityPremiumIndex;
+        }
+
+        return MathUtils.calculateLinearInterest(
+            pool.liquidityPremiumRate, 
+            pool.lastUpdateTimestamp
+        ).rayMul(utilizationRate).rayMul(pool.liquidityPremiumIndex);
+    }
+
+    function getUtilizationRate(Types.Pool memory pool) internal view returns (uint256) {
+        uint256 collateralBalance = IAToken(pool.aToken).balanceOf(pool.vault);
+        uint256 borrowBalance = IVariableDebtToken(pool.variableDebtToken).balanceOf(pool.vault);
+        return borrowBalance.rayDiv(collateralBalance);
     }
 
     function mintToTreasury(

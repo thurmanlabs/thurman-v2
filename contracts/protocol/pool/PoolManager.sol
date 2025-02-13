@@ -13,6 +13,7 @@ import {Loan} from "../libraries/services/Loan.sol";
 import {Types} from "../libraries/types/Types.sol";
 
 contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, IPoolManager {
+    using Pool for Types.Pool;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -108,6 +109,10 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
 
     function getPool(uint16 poolId) external view returns (Types.Pool memory) {
         return Pool.getPool(_pools, poolId);
+    }
+
+    function getNormalizedReturn(uint16 poolId) external view returns (uint256) {
+        return _pools[poolId].getNormalizedReturn();
     }
 
     function connectSTokentoVault(uint16 poolId) external {

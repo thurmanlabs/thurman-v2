@@ -156,5 +156,11 @@ library Types {
         uint256 accruedToTreasury;
         /// @dev The margin fee accrued to treasury
         uint256 marginFee;
+        /// @dev The liquidity premium index added on top of Aave yield
+        uint256 liquidityPremiumIndex;
+        /// @dev The liquidity premium rate
+        uint256 liquidityPremiumRate;
+        /// @dev The last update timestamp of the liquidity premium index
+        uint40 lastUpdateTimestamp;
     }
 }

@@ -19,6 +19,7 @@ contract SToken is ISToken, ERC20Upgradeable {
     address public vault;
     address public poolManager;
     address public treasury;
+    uint16 public poolId;
     modifier onlyAuthorized() {
         require(_msgSender() == vault || _msgSender() == poolManager, "SToken/only-authorized");
         _;
@@ -37,6 +38,7 @@ contract SToken is ISToken, ERC20Upgradeable {
         address _aavePool,
         address _poolManager,
         address _treasury,
+        uint16 _poolId,
         string memory _name,
         string memory _symbol
     ) external initializer {
@@ -47,6 +49,7 @@ contract SToken is ISToken, ERC20Upgradeable {
         aavePool = _aavePool;
         poolManager = _poolManager;
         treasury = _treasury;
+        poolId = _poolId;
     }
 
     function mint(
@@ -108,7 +111,8 @@ contract SToken is ISToken, ERC20Upgradeable {
     override (ERC20Upgradeable, IERC20)
     returns (uint256) {
         uint256 index = IPool(aavePool).getReserveData(underlyingAsset).liquidityIndex;
-        return super.balanceOf(user).rayMul(index);
+        uint256 normalizedReturn = IPoolManager(poolManager).getNormalizedReturn(poolId);
+        return super.balanceOf(user).rayMul(index).rayMul(normalizedReturn);
     }
 
     function totalSupply()
@@ -123,8 +127,8 @@ contract SToken is ISToken, ERC20Upgradeable {
         return IPool(aavePool).getReserveData(underlyingAsset);
     }
 
-    function setVault(uint16 poolId) external onlyAuthorized {
-        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+    function setVault(uint16 _poolId) external onlyAuthorized {
+        Types.Pool memory pool = IPoolManager(poolManager).getPool(_poolId);
         vault = pool.vault;
     }
 }

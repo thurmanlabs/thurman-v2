@@ -143,7 +143,19 @@ interface IPoolManager {
      */
     function isOwner(address _address) external view returns (bool);
 
+    /**
+     * @dev Returns the pool for a given pool id
+     * @param poolId The ID of the pool to get
+     * @return pool The pool for the given id
+     */
     function getPool(uint16 poolId) external view returns (Types.Pool memory);
+
+    /**
+     * @dev Returns the normalized return for a given pool
+     * @param poolId The ID of the pool to get the normalized return for
+     * @return normalizedReturn The normalized return for the pool
+     */
+    function getNormalizedReturn(uint16 poolId) external view returns (uint256);
 
     /**
      * @dev Connects the SToken to its corresponding vault
