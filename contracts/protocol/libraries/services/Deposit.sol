@@ -32,7 +32,7 @@ library Deposit {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         vault.fulfillDepositRequest(assets, receiver);
-        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(pool.underlyingAsset);
+        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());
         uint256 aaveCollateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
         uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
         pool.ltvRatio = aaveBorrowBalance.rayDiv(aaveCollateralBalance);
@@ -72,7 +72,7 @@ library Deposit {
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         uint256 shares = vault.convertToShares(assets);
         vault.fulfillRedeemRequest(shares, receiver);
-        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(pool.underlyingAsset);
+        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());
         uint256 aaveCollateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
         uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
         pool.ltvRatio = aaveBorrowBalance.rayDiv(aaveCollateralBalance);

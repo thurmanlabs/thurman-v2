@@ -127,10 +127,6 @@ library Types {
         address vault;
         /// @dev The address of the aave pool
         address aavePool;
-        /// @dev The address of the underlying asset
-        address underlyingAsset;
-        /// @dev The address of the sToken
-        address sToken;
         /// @dev The ltv ratio of Thurman's aave collateral and borrows
         uint256 ltvRatio;
         /// @dev The amount guaranteed by the pool

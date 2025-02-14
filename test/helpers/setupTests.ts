@@ -39,9 +39,8 @@ export async function setupTestEnv(): Promise<TestEnv> {
     const STokenFactory = await ethers.getContractFactory("SToken");
     const sUSDC = await upgrades.deployProxy(STokenFactory as unknown as ContractFactory, 
         [
-            addresses.tokens.USDC, 
-            addresses.aave.pool, 
             poolManager.target,
+            deployer.address,
             "sUSDC", 
             "sUSDC"
         ],
@@ -55,7 +54,7 @@ export async function setupTestEnv(): Promise<TestEnv> {
     const DTokenFactory = await ethers.getContractFactory("DToken");
     const dUSDC = await upgrades.deployProxy(DTokenFactory as unknown as ContractFactory, 
         [
-            addresses.tokens.USDC,
+            poolManager.target,
             "dUSDC",
             "dUSDC"
         ],
@@ -72,7 +71,6 @@ export async function setupTestEnv(): Promise<TestEnv> {
             addresses.tokens.USDC,
             sUSDC.target,
             dUSDC.target,
-            addresses.aave.pool,
             poolManager.target
         ]
     );
@@ -82,5 +80,16 @@ export async function setupTestEnv(): Promise<TestEnv> {
     testEnv.usdc = await ethers.getContractAt("IERC20", addresses.tokens.USDC);
     testEnv.aUSDC = await ethers.getContractAt("IERC20", addresses.tokens.aUSDC);
     testEnv.aavePool = await ethers.getContractAt("IPool", addresses.aave.pool);
+    
+    await testEnv.poolManager.addPool(
+        vault.target.toString(),
+        addresses.aave.pool,
+        ethers.parseEther("0.1"),
+        ethers.parseEther("0.8"),
+        ethers.parseEther("0.1"),
+        ethers.parseEther("0.02"),
+        ethers.parseEther("0.1"),
+    )
+    
     return testEnv;
 }

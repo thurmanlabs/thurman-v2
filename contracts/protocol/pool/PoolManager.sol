@@ -28,8 +28,6 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
     function addPool(
         address vault,
         address aavePool,
-        address underlyingAsset,
-        address sToken,
         uint256 collateralCushion,
         uint256 ltvRatioCap,
         uint256 baseRate,
@@ -40,8 +38,6 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
                 _pools, 
                 vault, 
                 aavePool, 
-                underlyingAsset, 
-                sToken, 
                 collateralCushion, 
                 ltvRatioCap, 
                 baseRate,
@@ -111,14 +107,12 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         return Pool.getPool(_pools, poolId);
     }
 
-    function getNormalizedReturn(uint16 poolId) external view returns (uint256) {
-        return _pools[poolId].getNormalizedReturn();
+    function getPoolCount() external view returns (uint16) {
+        return _poolCount;
     }
 
-    function connectSTokentoVault(uint16 poolId) external {
-        Types.Pool memory pool = _pools[poolId];
-        address sToken = IERC7540Vault(pool.vault).getShare();
-        ISToken(sToken).setVault(poolId);
+    function getNormalizedReturn(uint16 poolId) external view returns (uint256) {
+        return _pools[poolId].getNormalizedReturn();
     }
 
     function isOwner(address _address) external view returns (bool) {

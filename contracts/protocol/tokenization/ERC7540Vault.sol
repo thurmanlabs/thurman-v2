@@ -4,6 +4,7 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {IPoolManager} from "../../interfaces/IPoolManager.sol";
 import {IERC7540Vault} from "../../interfaces/IERC7540.sol";
 import {ISToken} from "../../interfaces/ISToken.sol";
 import {IDToken} from "../../interfaces/IDToken.sol";
@@ -13,6 +14,7 @@ import {Validation} from "../libraries/services/Validation.sol";
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
 import {MathUtils} from "../libraries/math/MathUtils.sol";
 import {InterestRate} from "../libraries/services/InterestRate.sol";
+
 contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     using WadRayMath for uint256;
     using SafeCast for uint256;
@@ -29,7 +31,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     uint256 public nextLoanId;
 
     address public poolManager;
-    address public aavePool;
+    uint16 public poolId;
     address public share;
     address public dToken;
     mapping(address => Types.UserVaultData) public userVaultData;
@@ -44,28 +46,18 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         address _asset,
         address _share,
         address _dToken,
-        address _aavePool,
         address _poolManager
     ) external initializer {
         __ERC4626_init(IERC20(_asset));
         require(_asset != address(0), "ERC7540Vault/invalid-asset");
         require(_share != address(0), "ERC7540Vault/invalid-share");
         require(_dToken != address(0), "ERC7540Vault/invalid-dToken");
-        require(_aavePool != address(0), "ERC7540Vault/invalid-pool");
         require(_poolManager != address(0), "ERC7540Vault/invalid-manager");
         
-        share = _share;
-        aavePool = _aavePool;
-        poolManager = _poolManager;
+        share = _share; 
         dToken = _dToken;
-        // Get aToken address and validate
-        Types.ReserveData memory reserveData = IPool(_aavePool).getReserveData(_asset);
-        address aToken = reserveData.aTokenAddress;
-        require(aToken != address(0), "ERC7540Vault/invalid-atoken");
-        
-        // Set approvals during initialization
-        require(IERC20(_asset).approve(_aavePool, type(uint256).max), "ERC7540Vault/approve-failed");
-        require(IERC20(aToken).approve(_aavePool, type(uint256).max), "ERC7540Vault/approve-failed");
+        poolManager = _poolManager;
+        poolId = IPoolManager(_poolManager).getPoolCount();
     }
     
     // --- ERC-7540 methods ---
@@ -87,7 +79,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
 
     function fulfillDepositRequest(uint256 assets, address receiver) external onlyPoolManager returns (uint256 requestId) {
         Validation.validateFulfillDepositRequest(userVaultData[receiver]);
-        uint256 index = IPool(aavePool).getReserveData(asset()).liquidityIndex;
+        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+        uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
         uint256 shares = assets.rayDiv(index);
         userVaultData[receiver].maxMint += shares.toUint128();
         uint128 newPendingDepositRequest = userVaultData[receiver].pendingDepositRequest >= assets.toUint128() ? userVaultData[receiver].pendingDepositRequest - assets.toUint128() : 0;
@@ -96,7 +89,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         
         if (userVaultData[receiver].pendingDepositRequest == 0) delete userVaultData[receiver].pendingDepositRequest;
 
-        IPool(aavePool).supply(asset(), assets, address(this), 0);
+        IERC20(asset()).approve(pool.aavePool, assets);
+        IPool(pool.aavePool).supply(asset(), assets, address(this), 0);
         ISToken sToken = ISToken(share); 
         sToken.mint(msg.sender, address(this), assets, index);
         emit DepositClaimable(receiver, REQUEST_ID, assets, shares);
@@ -105,14 +99,16 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     
     function mint(uint256 shares, address receiver, address controller) external returns (uint256 assets) {
         Validation.validateController(controller, receiver, isOperator);
+        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
         IERC20(share).transferFrom(address(this), receiver, shares);
-        uint256 index = IPool(aavePool).getReserveData(asset()).liquidityIndex;
+        uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
         return shares.rayDiv(index);
     }
 
     function deposit(uint256 assets, address receiver, address controller) external returns (uint256 shares) {
         Validation.validateController(controller, receiver, isOperator);
-        uint256 index = IPool(aavePool).getReserveData(asset()).liquidityIndex;
+        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+        uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
         shares = assets.rayDiv(index);
         require(userVaultData[receiver].maxMint >= shares, "ERC7540Vault/insufficient-mint-allowance");
         
@@ -150,7 +146,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         address receiver
     ) external onlyPoolManager returns (uint256 requestId) {
         Validation.validateFulfillRedeemRequest(userVaultData[receiver]);
-        uint256 index = IPool(aavePool).getReserveData(asset()).liquidityIndex;
+        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+        uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
         uint256 assets = shares.rayMul(index);
         userVaultData[receiver].maxWithdraw = userVaultData[receiver].maxWithdraw + assets.toUint128();
         userVaultData[receiver].pendingRedeemRequest = 
@@ -171,13 +168,14 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     {
         Validation.validateController(controller, owner, isOperator);
         Validation.validateRedeem(userVaultData[owner], shares);
-        uint256 index = IPool(aavePool).getReserveData(asset()).liquidityIndex;
+        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+        uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
         userVaultData[owner].maxWithdraw = 
             userVaultData[owner].maxWithdraw > shares ? userVaultData[owner].maxWithdraw - shares.toUint128() : 0;
         
         shares = assets.rayDiv(index);  // Calculate shares first
         
-        IPool(aavePool).withdraw(asset(), assets, owner);
+        IPool(pool.aavePool).withdraw(asset(), assets, owner);
         
         emit Withdraw(address(this), controller, owner, assets, shares);
         return shares;
@@ -190,9 +188,10 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         uint256 projectedLossRate,
         uint256 baseRate
     ) external onlyPoolManager {
+        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
         uint256 interestRate = baseRate + projectedLossRate;
         uint256 monthlyPayment = _calculateMonthlyPayment(principal, interestRate, termMonths);
-        Types.ReserveData memory reserveData = IPool(aavePool).getReserveData(asset());
+        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(asset());
         uint256 currentBorrowerIndex = reserveData.variableBorrowIndex;
         uint256 loanId = nextLoanId++;
         loans[borrower].push(Types.Loan({
@@ -212,7 +211,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
             lastUpdateTimestamp: uint40(block.timestamp)
         }));
         IDToken(dToken).mint(borrower, principal);
-        IPool(aavePool).borrow(asset(), principal, 2, 0, address(this));
+        IERC20(asset()).approve(pool.aavePool, principal);
+        IPool(pool.aavePool).borrow(asset(), principal, 2, 0, address(this));
         IERC20(asset()).transfer(borrower, principal);
         
         emit LoanInitialized(loanId, borrower, principal, termMonths, interestRate);
@@ -227,8 +227,9 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         address onBehalfOf,
         uint256 loanId
     ) external onlyPoolManager returns (uint256 remainingInterest, uint256 interestRate) {
+        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
         Types.Loan storage loan = loans[onBehalfOf][loanId];
-        Types.ReserveData memory reserveData = IPool(aavePool).getReserveData(asset());
+        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(asset());
         uint256 currentBorrowerIndex = reserveData.variableBorrowIndex;
         require(loan.status == Types.Status.Active, "ERC7540Vault/loan-not-active");
         require(loan.remainingBalance >= assets, "ERC7540Vault/insufficient-loan-balance");
@@ -260,7 +261,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         uint256 aavePaymentAmount = principal + balanceIncrease;
         
         IERC20(asset()).transferFrom(caller, address(this), assets);
-        IPool(aavePool).repay(asset(), aavePaymentAmount, 2, address(this));
+        IERC20(asset()).approve(pool.aavePool, aavePaymentAmount);
+        IPool(pool.aavePool).repay(asset(), aavePaymentAmount, 2, address(this));
         loan.aaveBalance = loan.aaveBalance + balanceIncrease - aavePaymentAmount;
         IDToken(dToken).burn(onBehalfOf, principal);
 
@@ -270,8 +272,10 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
 
     function guarantee(uint256 assets, address caller) external onlyPoolManager {
         Validation.validateGuarantee(address(this), assets);
+        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
         IERC20(asset()).transferFrom(caller, address(this), assets);
-        IPool(aavePool).supply(asset(), assets, address(this), 0);
+        IERC20(asset()).approve(pool.aavePool, assets);
+        IPool(pool.aavePool).supply(asset(), assets, address(this), 0);
         emit PoolGuaranteed(address(this), caller, assets);
     }
 
@@ -301,7 +305,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         override(ERC4626Upgradeable, IERC7540Vault) 
         returns (uint256) 
     {
-        uint256 index = IPool(aavePool).getReserveData(asset()).liquidityIndex;
+        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+        uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
         return assets.rayDiv(index);
     }
 
@@ -311,7 +316,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         override(ERC4626Upgradeable, IERC7540Vault) 
         returns (uint256) 
     {
-        uint256 index = IPool(aavePool).getReserveData(asset()).liquidityIndex;
+        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+        uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
         return shares.rayMul(index);
     }
 

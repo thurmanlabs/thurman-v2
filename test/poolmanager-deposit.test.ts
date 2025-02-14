@@ -61,10 +61,9 @@ describe("PoolManager Deposit", () => {
     describe("Deposit Events", () => {
 
         it("should request deposit", async () => {
-            const { deployer, poolManager, usdc, vault } = testEnv;
-            await poolManager.addPool(String(vault.target));
+            const { poolManager, usdc, vault } = testEnv;
             const amount = ethers.parseUnits("1", 6);
-            await usdc.approve(String(vault.target), amount);
+            await usdc.approve(vault.target.toString(), amount);
             expect(await poolManager.requestDeposit(0, amount))
                 .to.emit(vault, "DepositRequest");           
         });
@@ -80,7 +79,7 @@ describe("PoolManager Deposit", () => {
         });
 
         it("should allow a user to deposit", async () => {
-            const { users, poolManager, vault, sUSDC } = testEnv;
+            const { users, poolManager, vault } = testEnv;
             const poolId = 0;
             const userIndex = 0;
             const amount = ethers.parseUnits("1", 6);
@@ -91,14 +90,18 @@ describe("PoolManager Deposit", () => {
         });
 
         it("should allow a user to request redeem", async () => {
-            const { users, poolManager, vault, sUSDC } = testEnv;
+            const { users, poolManager, vault, sUSDC, usdc } = testEnv;
             const poolId = 0;
             const userIndex = 0;
             const amount = ethers.parseUnits("1", 6);
             await deposit(testEnv, amount, userIndex);
-            await sUSDC.connect(users[userIndex]).approve(String(vault.target), amount);
+            const pool = await poolManager.getPool(poolId);
+            const aavePool = await ethers.getContractAt("IPool", pool.aavePool);
+            const liquidityIndex = (await aavePool.getReserveData(usdc.target.toString())).liquidityIndex; 
+            const shares = amount * liquidityIndex;
+            await sUSDC.connect(users[userIndex]).approve(vault.target.toString(), shares);
             expect(await poolManager.connect(users[userIndex])
-                .requestRedeem(poolId, amount, users[userIndex].address, users[userIndex].address))
+                .requestRedeem(poolId, shares, users[userIndex].address, users[userIndex].address))
                 .to.emit(vault, "RedeemRequest");
         });
 
@@ -114,7 +117,7 @@ describe("PoolManager Deposit", () => {
         });
 
         it("should allow a user to redeem", async () => {
-            const { users, poolManager, vault, aUSDC } = testEnv;
+            const { users, poolManager, vault } = testEnv;
             const poolId = 0;
             const userIndex = 0;
             const amount = ethers.parseUnits("1", 6);

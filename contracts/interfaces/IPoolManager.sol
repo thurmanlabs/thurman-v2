@@ -122,8 +122,6 @@ interface IPoolManager {
     function addPool(
         address vault,
         address aavePool,
-        address underlyingAsset,
-        address sToken,
         uint256 collateralCushion,
         uint256 ltvRatioCap,
         uint256 baseRate,
@@ -153,15 +151,15 @@ interface IPoolManager {
     function getPool(uint16 poolId) external view returns (Types.Pool memory);
 
     /**
+     * @dev Returns the number of pools in the pool manager
+     * @return poolCount The number of pools in the pool manager
+     */
+    function getPoolCount() external view returns (uint16);
+
+    /**
      * @dev Returns the normalized return for a given pool
      * @param poolId The ID of the pool to get the normalized return for
      * @return normalizedReturn The normalized return for the pool
      */
     function getNormalizedReturn(uint16 poolId) external view returns (uint256);
-
-    /**
-     * @dev Connects the SToken to its corresponding vault
-     * @param poolId The ID of the pool to connect
-     */
-    function connectSTokentoVault(uint16 poolId) external;
 }

@@ -59,7 +59,7 @@ describe("PoolManager Borrow", () => {
 
     describe("Borrow Events", () => {
         it("should initialize a loan", async () => {
-            const { deployer, users, poolManager, usdc, vault } = testEnv;
+            const { deployer, users, poolManager, vault } = testEnv;
             const userIndex = 0;
             const borrowerIndex = 1;
             const poolId = 0;
@@ -73,7 +73,7 @@ describe("PoolManager Borrow", () => {
         });
 
         it("should repay a loan", async () => {
-            const { deployer, users, poolManager, usdc, vault } = testEnv;
+            const { deployer, users, poolManager, vault, usdc } = testEnv;
             const userIndex = 0;
             const borrowerIndex = 1;
             const poolId = 0;
@@ -85,10 +85,10 @@ describe("PoolManager Borrow", () => {
             await deposit(testEnv, amount, userIndex);
             
             // Give borrower some USDC for repayment
-            await usdc.connect(whaleSigner).transfer(
-                users[borrowerIndex].address, 
-                ethers.parseUnits("1", 6)
-            );
+            // await usdc.connect(whaleSigner).transfer(
+            //     users[borrowerIndex].address, 
+            //     ethers.parseUnits("1", 6)
+            // ); 
             
             // Initialize loan
             await poolManager.connect(deployer)

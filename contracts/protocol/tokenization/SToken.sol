@@ -5,6 +5,7 @@ import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {IPoolManager} from "../../interfaces/IPoolManager.sol";
 import {ISToken} from "../../interfaces/ISToken.sol";
+import {IERC7540Vault} from "../../interfaces/IERC7540.sol";
 import {IPool} from "../../interfaces/IPool.sol";
 import {Types} from "../libraries/types/Types.sol";
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
@@ -14,15 +15,15 @@ contract SToken is ISToken, ERC20Upgradeable {
     using WadRayMath for uint256;
     using SafeCast for uint256;
 
-    address public underlyingAsset;
-    address public aavePool;
-    address public vault;
     address public poolManager;
     address public treasury;
     uint16 public poolId;
-    
+
     modifier onlyAuthorized() {
-        require(_msgSender() == vault || _msgSender() == poolManager, "SToken/only-authorized");
+        require(
+                _msgSender() == IPoolManager(poolManager).getPool(poolId).vault || 
+                _msgSender() == poolManager, "SToken/only-authorized"
+            );
         _;
     }
 
@@ -35,22 +36,15 @@ contract SToken is ISToken, ERC20Upgradeable {
  	}
 
     function initialize(
-        address _underlyingAsset,
-        address _aavePool,
         address _poolManager,
         address _treasury,
-        uint16 _poolId,
         string memory _name,
         string memory _symbol
     ) external initializer {
         __ERC20_init(_name, _symbol);
-        require(_aavePool != address(0), "SToken/invalid-pool-address");
-        require(_underlyingAsset != address(0), "SToken/invalid-asset-address");
-        underlyingAsset = _underlyingAsset;
-        aavePool = _aavePool;
         poolManager = _poolManager;
         treasury = _treasury;
-        poolId = _poolId;
+        poolId = IPoolManager(_poolManager).getPoolCount();
     }
 
     function mint(
@@ -111,7 +105,9 @@ contract SToken is ISToken, ERC20Upgradeable {
     view
     override (ERC20Upgradeable, IERC20)
     returns (uint256) {
-        uint256 index = IPool(aavePool).getReserveData(underlyingAsset).liquidityIndex;
+        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+        IERC7540Vault vault = IERC7540Vault(pool.vault);
+        uint256 index = IPool(pool.aavePool).getReserveData(vault.asset()).liquidityIndex;
         uint256 normalizedReturn = IPoolManager(poolManager).getNormalizedReturn(poolId);
         return super.balanceOf(user).rayMul(index).rayMul(normalizedReturn);
     }
@@ -121,15 +117,14 @@ contract SToken is ISToken, ERC20Upgradeable {
         view
         override (ERC20Upgradeable, IERC20)
         returns (uint256) {
-            return super.totalSupply().rayMul(IPool(aavePool).getReserveData(underlyingAsset).liquidityIndex);
+            Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+            IERC7540Vault vault = IERC7540Vault(pool.vault);
+            return super.totalSupply().rayMul(IPool(pool.aavePool).getReserveData(vault.asset()).liquidityIndex);
         }
 
     function getReserveData() public view returns (Types.ReserveData memory) {
-        return IPool(aavePool).getReserveData(underlyingAsset);
-    }
-
-    function setVault(uint16 _poolId) external onlyAuthorized {
-        Types.Pool memory pool = IPoolManager(poolManager).getPool(_poolId);
-        vault = pool.vault;
+        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+        IERC7540Vault vault = IERC7540Vault(pool.vault);
+        return IPool(pool.aavePool).getReserveData(vault.asset());
     }
 }

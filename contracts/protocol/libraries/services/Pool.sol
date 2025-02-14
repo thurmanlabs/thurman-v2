@@ -5,8 +5,9 @@ import {Types} from "../types/Types.sol";
 import {IVariableDebtToken} from "../../../interfaces/IVariableDebtToken.sol";
 import {IAToken} from "../../../interfaces/IAToken.sol";
 import {IPool} from "../../../interfaces/IPool.sol";
-import {WadRayMath} from "../math/WadRayMath.sol";
+import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
 import {ISToken} from "../../../interfaces/ISToken.sol";
+import {WadRayMath} from "../math/WadRayMath.sol";
 import {MathUtils} from "../math/MathUtils.sol";
 
 library Pool {
@@ -19,8 +20,6 @@ library Pool {
         mapping(uint16 => Types.Pool) storage pools,
         address vault,
         address aavePool,
-        address underlyingAsset,
-        address sToken,
         uint256 collateralCushion,
         uint256 ltvRatioCap,
         uint256 baseRate,
@@ -30,8 +29,6 @@ library Pool {
     ) internal returns (bool) {
         pools[poolCount].vault = vault;
         pools[poolCount].aavePool = aavePool;
-        pools[poolCount].underlyingAsset = underlyingAsset;
-        pools[poolCount].sToken = sToken;
         pools[poolCount].config.collateralCushion = collateralCushion;
         pools[poolCount].config.ltvRatioCap = ltvRatioCap;
         pools[poolCount].config.baseRate = baseRate;
@@ -40,7 +37,8 @@ library Pool {
         pools[poolCount].liquidityPremiumIndex = WadRayMath.RAY;
         pools[poolCount].lastUpdateTimestamp = uint40(block.timestamp);
 
-        emit PoolAdded(poolCount, vault, underlyingAsset);
+        IERC7540Vault _vault = IERC7540Vault(vault);
+        emit PoolAdded(poolCount, vault, _vault.asset());
         return true;
     }
 
@@ -76,7 +74,8 @@ library Pool {
     }
 
     function getUtilizationRate(Types.Pool memory pool) internal view returns (uint256) {
-        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(pool.underlyingAsset);
+        IERC7540Vault vault = IERC7540Vault(pool.vault);
+        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());
         uint256 collateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
         uint256 borrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
         return borrowBalance.rayDiv(collateralBalance);
@@ -88,13 +87,15 @@ library Pool {
         uint256 amount
     ) internal {
         Types.Pool memory pool = getPool(pools, poolId);
-        uint256 index = IPool(pool.aavePool).getReserveData(pool.underlyingAsset).liquidityIndex;
+        IERC7540Vault vault = IERC7540Vault(pool.vault);
+        uint256 index = IPool(pool.aavePool).getReserveData(vault.asset()).liquidityIndex;
         uint256 amountScaled = amount.rayDiv(index);
         require(amountScaled > 0, "Pool/invalid-mint-amount");
         
         if (pool.accruedToTreasury != 0) {
             pool.accruedToTreasury = 0;
-            ISToken(pool.sToken).mintToTreasury(pool.accruedToTreasury, index);   
+            address sToken = IERC7540Vault(pool.vault).getShare();
+            ISToken(sToken).mintToTreasury(pool.accruedToTreasury, index);   
             
             emit MintedToTreasury(poolId, pool.accruedToTreasury);
         }
@@ -104,12 +105,6 @@ library Pool {
         mapping(uint16 => Types.Pool) storage pools,
         uint16 poolId
     ) internal view returns (Types.Pool memory) {
-        Types.Pool memory pool = pools[poolId];
-        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(pool.underlyingAsset);
-        IAToken aToken = IAToken(reserveData.aTokenAddress);
-        uint256 aaveCollateralBalance = aToken.balanceOf(pool.vault);
-        uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
-        pool.ltvRatio = aaveBorrowBalance.rayDiv(aaveCollateralBalance);
-        return pool;
+        return pools[poolId];
     }
 }

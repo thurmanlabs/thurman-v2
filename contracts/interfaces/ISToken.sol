@@ -51,6 +51,4 @@ interface ISToken is IERC20 {
     uint256 amount, 
     uint256 index
   ) external;
-
-  function setVault(uint16 poolId) external;
 }
