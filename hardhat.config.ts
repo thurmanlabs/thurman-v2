@@ -24,6 +24,7 @@ const config: HardhatUserConfig = {
       },
       viaIR: true,
     },
+    
   },
   networks: {
     hardhat: {
@@ -32,6 +33,7 @@ const config: HardhatUserConfig = {
         url: POLYGON_MAINNET_RPC_URL,
         blockNumber: 67312309
       },
+      loggingEnabled: true,
     },
     polygon: {
       url: POLYGON_MAINNET_RPC_URL,

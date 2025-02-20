@@ -7,14 +7,14 @@ export async function requestDeposit(testEnv: TestEnv, amount: bigint, userIndex
 }
 
 export async function fulfillDeposit(testEnv: TestEnv, amount: bigint, userIndex: number) {
-    const { deployer, poolManager, users } = testEnv;
+    const { deployer, poolManager, users, sUSDC, vault } = testEnv;
     const poolId = 0;
     await requestDeposit(testEnv, amount, userIndex);
     await poolManager.connect(deployer).fulfillDeposit(poolId, amount, users[userIndex].address);
 }
 
 export async function deposit(testEnv: TestEnv, amount: bigint, userIndex: number) {
-    const { users, poolManager } = testEnv;
+    const { users, poolManager, sUSDC, vault } = testEnv;
     const poolId = 0;
     await fulfillDeposit(testEnv, amount, userIndex);
     await poolManager.connect(users[userIndex]).deposit(poolId, amount, users[userIndex].address);

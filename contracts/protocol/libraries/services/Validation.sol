@@ -6,6 +6,9 @@ import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
 import {ISToken} from "../../../interfaces/ISToken.sol";
 import {Types} from "../types/Types.sol";
 import {WadRayMath} from "../math/WadRayMath.sol";
+import {IAToken} from "../../../interfaces/IAToken.sol";
+import {IPool} from "../../../interfaces/IPool.sol";
+
 library Validation {
     using WadRayMath for uint256;
 
@@ -58,17 +61,26 @@ library Validation {
         require(userVaultData.maxWithdraw >= shares, "ERC7540Vault/insufficient-max-withdraw");
     }
 
-    // TODO: Add validation that takes into account the ltv ratio cap of the pool
     function validateInitLoan(
         Types.Pool memory pool,
+        address borrower,
         uint256 principal,
         uint16 termMonths,
-        uint256 interestRate
-    ) internal pure {
-        require(pool.ltvRatio <= pool.config.ltvRatioCap, "PoolManager/ltv-ratio-too-high");
+        uint256 projectedLossRate
+    ) internal view {
+        require(borrower != address(0), "PoolManager/invalid-borrower");
         require(principal > 0, "ERC7540Vault/invalid-principal");
-        require(termMonths > 0, "ERC7540Vault/invalid-term-months");
-        require(interestRate > 0, "ERC7540Vault/invalid-interest-rate");
+        require(termMonths > 0, "ERC7540Vault/invalid-term");
+        require(projectedLossRate > 0, "ERC7540Vault/invalid-projected-loss-rate");
+        // Get current collateral
+        IERC7540Vault vault = IERC7540Vault(pool.vault);
+        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());
+        uint256 aTokenBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
+        require(aTokenBalance > 0, "ERC7540Vault/no-collateral");
+        
+        // Calculate resulting LTV
+        uint256 newLTV = (pool.ltvRatio + (principal / aTokenBalance));
+        require(newLTV <= pool.config.ltvRatioCap, "PoolManager/ltv-ratio-too-high");
     }
 
     function validateGuarantee(

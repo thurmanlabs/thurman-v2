@@ -50,6 +50,13 @@ interface IVariableDebtToken is IERC20 {
    * @return The scaled balance of the user
    */
   function scaledBalanceOf(address user) external view returns (uint256);
+
+  /**
+   * @notice Returns the balance of the user.
+   * @param user The user whose balance is calculated
+   * @return The balance of the user
+   */
+  function balanceOf(address user) external view returns (uint256);
     
     /**
    * @notice Mints debt token to the `onBehalfOf` address

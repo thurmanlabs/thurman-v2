@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {WadRayMath} from "./WadRayMath.sol";
 import {Types} from "../types/Types.sol";
+import "hardhat/console.sol";
 
 library LoanMath {
     using WadRayMath for uint256;
@@ -39,21 +40,35 @@ library LoanMath {
     function calculateMonthlyPayment(
         uint256 principal,
         uint256 interestRate,
-        uint256 totalPayments
+        uint16 termMonths
     ) internal pure returns (uint256) {
-        Types.MonthlyPaymentVars memory vars;
-        
-        // Pack calculations into struct to avoid stack depth
-        vars.monthlyRate = interestRate.rayDiv(12);
-        vars.rateFactor = WadRayMath.RAY + vars.monthlyRate;
-        vars.rateFactorPower = vars.rateFactor.rayPow(totalPayments);
-        vars.principalRay = WadRayMath.wadToRay(principal);
+        require(termMonths > 0, "LoanMath/invalid-term");
+        require(interestRate > 0, "LoanMath/invalid-rate");
+        require(principal > 0, "LoanMath/invalid-principal");
 
-        // Single calculation using struct variables
-        return WadRayMath.rayToWad(
-            vars.principalRay
-                .rayMul(vars.monthlyRate.rayMul(vars.rateFactorPower))
-                .rayDiv(vars.rateFactorPower - WadRayMath.RAY)
-        );
+        console.log("LoanMath inputs:");
+        console.log("- Principal:", principal);
+        console.log("- Interest Rate:", interestRate);
+        console.log("- Term Months:", termMonths);
+
+        // Convert interest rate to monthly (keeping in WAD)
+        uint256 monthlyRate = interestRate / 12;
+        
+        // Convert to RAY only for the power calculation
+        uint256 baseWad = WadRayMath.WAD + monthlyRate;  // (1 + r) in WAD
+        uint256 baseRay = WadRayMath.wadToRay(baseWad);  // Convert to RAY for power
+        
+        // Calculate (1 + r)^n in RAY
+        uint256 rateFactorPower = baseRay.rayPow(termMonths);
+        
+        // Convert back to WAD for remaining calculations
+        uint256 rateFactorPowerWad = WadRayMath.rayToWad(rateFactorPower);
+        
+        // Calculate in WAD: P * r * (1 + r)^n / ((1 + r)^n - 1)
+        uint256 numerator = principal * monthlyRate * rateFactorPowerWad / WadRayMath.WAD;
+        uint256 denominator = rateFactorPowerWad - WadRayMath.WAD;
+        
+        require(denominator > 0, "LoanMath/zero-denominator");
+        return numerator / denominator;
     }
 } 

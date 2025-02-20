@@ -59,16 +59,22 @@ describe("PoolManager Borrow", () => {
 
     describe("Borrow Events", () => {
         it("should initialize a loan", async () => {
-            const { deployer, users, poolManager, vault } = testEnv;
+            const { deployer, users, poolManager, vault, usdc } = testEnv;
             const userIndex = 0;
             const borrowerIndex = 1;
             const poolId = 0;
-            const amount = ethers.parseUnits("10", 6);        // 10 USDC
-            const loanAmount = ethers.parseUnits("1", 6);     // 1 USDC
-            const interestRate = ethers.parseEther("0.06");
+            const amount = ethers.parseUnits("10.0", 6);
+            const loanAmount = ethers.parseUnits("1.0", 6);
+            const projectedLossRate = ethers.parseEther("0.1"); // 10% projected loss
+
             await deposit(testEnv, amount, userIndex);
+
+            const pool = await poolManager.getPool(poolId);
+            console.log("pool ltv ratio: ", pool.ltvRatio);
+            console.log("pool ltv ratio cap: ", pool.config.ltvRatioCap);
+            
             expect(await poolManager.connect(deployer)
-                .initLoan(poolId, users[borrowerIndex].address, loanAmount, 12, interestRate))
+                .initLoan(poolId, users[borrowerIndex].address, loanAmount, 12, projectedLossRate))
                 .to.emit(vault, "LoanInitialized");
         });
 
@@ -80,6 +86,10 @@ describe("PoolManager Borrow", () => {
             const amount = ethers.parseUnits("10", 6);
             const loanAmount = ethers.parseUnits("1", 6);
             const interestRate = ethers.parseEther("0.06");
+
+            vault.on("LoanInitialized", async (loanId: number, borrower: string, principal: number, termMonths: number, interestRate: number) => {
+                console.log("Loan initialized: ", loanId, borrower, principal, termMonths, interestRate);
+            });
             
             // Setup initial balances
             await deposit(testEnv, amount, userIndex);

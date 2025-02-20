@@ -82,10 +82,10 @@ export async function setupTestEnv(): Promise<TestEnv> {
     testEnv.aavePool = await ethers.getContractAt("IPool", addresses.aave.pool);
     
     await testEnv.poolManager.addPool(
-        vault.target.toString(),
+        vault.getAddress(),
         addresses.aave.pool,
         ethers.parseEther("0.1"),
-        ethers.parseEther("0.8"),
+        ethers.parseEther("0.9"),
         ethers.parseEther("0.1"),
         ethers.parseEther("0.02"),
         ethers.parseEther("0.1"),

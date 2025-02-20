@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 pragma solidity ^0.8.24;
 
+import "hardhat/console.sol";
 
 /**
  * @title WadRayMath library
@@ -64,14 +65,19 @@ library WadRayMath {
    * @return c = a raymul b
    **/
   function rayMul(uint256 a, uint256 b) internal pure returns (uint256 c) {
-    // to avoid overflow, a <= (type(uint256).max - HALF_RAY) / b
-    assembly {
-      if iszero(or(iszero(b), iszero(gt(a, div(sub(not(0), HALF_RAY), b))))) {
-        revert(0, 0)
-      }
-
-      c := div(add(mul(a, b), HALF_RAY), RAY)
+    // Check for zero inputs
+    if (b == 0) {
+        return 0;
     }
+    
+    // to avoid overflow, a <= (type(uint256).max - HALF_RAY) / b
+    uint256 maxA = (type(uint256).max - HALF_RAY) / b;
+    if (a > maxA) {
+        console.log("rayMul overflow - a:", a, "maxA:", maxA);
+        revert("WadRayMath: rayMul overflow");
+    }
+    c = (a * b + HALF_RAY) / RAY;
+    return c;
   }
 
   /**
@@ -93,42 +99,43 @@ library WadRayMath {
   }
 
   /**
-   * @notice Calculates x^n in ray, checking for overflow and edge cases
-   * @param x Base in ray
-   * @param n Exponent
-   * @return z Result in ray
+   * @dev Raised to the power of n
+   * @param x ray
+   * @param n uint256
+   * @return z = x^n
    */
   function rayPow(uint256 x, uint256 n) internal pure returns (uint256 z) {
-    // Handle edge cases
-    if (n == 0) {
-      return RAY;
-    }
-    if (x == 0) {
-      return 0;
-    }
-    if (x == RAY) {
-      return RAY;
-    }
+    // Handle edge cases first
+    if (n == 0) return RAY;
+    if (n == 1) return x;
+    if (x == 0) return 0;
+    if (x == RAY) return RAY;
 
-    // Ensure x is normalized to RAY
-    require(x >= RAY, "WadRayMath: x < RAY");
+    console.log("rayPow - x:", x);
 
-    // Use binary exponentiation
-    z = n % 2 != 0 ? x : RAY;
+    z = RAY;
+    uint256 baseValue = x;
 
-    // Divide n by 2
-    for (n /= 2; n != 0; n /= 2) {
-      // Square x, revert if overflow
-      uint256 square = rayMul(x, x);
-      require(square >= x, "WadRayMath: multiplication overflow");
-      x = square;
+    while (n > 0) {
+        if (n % 2 != 0) {
+            uint256 newZ = rayMul(z, baseValue);
+            if (newZ < z) {
+                console.log("rayPow overflow in z update");
+                revert("WadRayMath: multiplication overflow");
+            }
+            z = newZ;
+        }
 
-      // Multiply if n is odd
-      if (n % 2 != 0) {
-        uint256 result = rayMul(z, x);
-        require(result >= z, "WadRayMath: multiplication overflow");
-        z = result;
-      }
+        if (n > 1) {
+            uint256 newBase = rayMul(baseValue, baseValue);
+            if (newBase < baseValue) {
+                console.log("rayPow overflow in base squaring");
+                revert("WadRayMath: base overflow");
+            }
+            baseValue = newBase;
+        }
+
+        n = n / 2;
     }
   }
 

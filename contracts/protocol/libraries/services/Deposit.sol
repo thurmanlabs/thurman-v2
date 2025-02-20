@@ -35,7 +35,9 @@ library Deposit {
         Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());
         uint256 aaveCollateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
         uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
-        pool.ltvRatio = aaveBorrowBalance.rayDiv(aaveCollateralBalance);
+        
+        // Set LTV ratio to 0 if no borrows
+        pool.ltvRatio = aaveCollateralBalance == 0 ? 0 : aaveBorrowBalance.rayDiv(aaveCollateralBalance);
     }
 
     function deposit(

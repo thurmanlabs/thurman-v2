@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 pragma solidity ^0.8.24;
+
+import "hardhat/console.sol";
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
@@ -13,6 +15,7 @@ import {Types} from "../libraries/types/Types.sol";
 import {Validation} from "../libraries/services/Validation.sol";
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
 import {MathUtils} from "../libraries/math/MathUtils.sol";
+import {LoanMath} from "../libraries/math/LoanMath.sol";
 import {InterestRate} from "../libraries/services/InterestRate.sol";
 
 contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
@@ -80,19 +83,22 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     function fulfillDepositRequest(uint256 assets, address receiver) external onlyPoolManager returns (uint256 requestId) {
         Validation.validateFulfillDepositRequest(userVaultData[receiver]);
         Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+        
+        // Supply to Aave first
+        IERC20(asset()).approve(pool.aavePool, assets);
+        IPool(pool.aavePool).supply(asset(), assets, address(this), 0);
+        
+        // Then mint sTokens
         uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
         uint256 shares = assets.rayDiv(index);
         userVaultData[receiver].maxMint += shares.toUint128();
-        uint128 newPendingDepositRequest = userVaultData[receiver].pendingDepositRequest >= assets.toUint128() ? userVaultData[receiver].pendingDepositRequest - assets.toUint128() : 0;
+        uint128 newPendingDepositRequest = userVaultData[receiver].pendingDepositRequest >= assets.toUint128() ? 
+            userVaultData[receiver].pendingDepositRequest - assets.toUint128() : 0;
         userVaultData[receiver].pendingDepositRequest = newPendingDepositRequest;
-            userVaultData[receiver].pendingDepositRequest > assets.toUint128() ? userVaultData[receiver].pendingDepositRequest - assets.toUint128() : 0;
-        
-        if (userVaultData[receiver].pendingDepositRequest == 0) delete userVaultData[receiver].pendingDepositRequest;
 
-        IERC20(asset()).approve(pool.aavePool, assets);
-        IPool(pool.aavePool).supply(asset(), assets, address(this), 0);
         ISToken sToken = ISToken(share); 
         sToken.mint(msg.sender, address(this), assets, index);
+        
         emit DepositClaimable(receiver, REQUEST_ID, assets, shares);
         return REQUEST_ID;
     }
@@ -189,11 +195,18 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         uint256 baseRate
     ) external onlyPoolManager {
         Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
-        uint256 interestRate = baseRate + projectedLossRate;
-        uint256 monthlyPayment = _calculateMonthlyPayment(principal, interestRate, termMonths);
+        
+        uint256 interestRate = baseRate + projectedLossRate;        
+
+        uint256 monthlyPayment = LoanMath.calculateMonthlyPayment(principal, interestRate, termMonths);
+
+        
         Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(asset());
+        
         uint256 currentBorrowerIndex = reserveData.variableBorrowIndex;
         uint256 loanId = nextLoanId++;
+        
+        // Create loan struct
         loans[borrower].push(Types.Loan({
             id: uint96(loanId),
             principal: uint128(principal),
@@ -210,12 +223,28 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
             currentBorrowerIndex: uint176(currentBorrowerIndex),
             lastUpdateTimestamp: uint40(block.timestamp)
         }));
-        IDToken(dToken).mint(borrower, principal);
+        console.log("Created loan struct");
+
+        // First approve
         IERC20(asset()).approve(pool.aavePool, principal);
-        IPool(pool.aavePool).borrow(asset(), principal, 2, 0, address(this));
-        IERC20(asset()).transfer(borrower, principal);
+        console.log("Approved USDC spend");
         
-        emit LoanInitialized(loanId, borrower, principal, termMonths, interestRate);
+        // Then borrow
+        try IPool(pool.aavePool).borrow(asset(), principal, 2, 0, address(this)) {
+            console.log("Borrowed from Aave");
+            
+            IDToken(dToken).mint(borrower, principal);
+            console.log("Minted dTokens");
+            
+            IERC20(asset()).transfer(borrower, principal);
+            console.log("Transferred USDC to borrower");
+            
+            emit LoanInitialized(loanId, borrower, principal, termMonths, interestRate);
+        } catch Error(string memory reason) {
+            revert(string(abi.encodePacked("Aave borrow failed: ", reason)));
+        } catch {
+            revert("Aave borrow failed without reason");
+        }
     }
 
     function repay(

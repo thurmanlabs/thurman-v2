@@ -67,10 +67,10 @@ library Pool {
             return pool.liquidityPremiumIndex;
         }
 
-        return MathUtils.calculateLinearInterest(
+        return (MathUtils.calculateLinearInterest(
             pool.config.liquidityPremiumRate, 
             pool.lastUpdateTimestamp
-        ).rayMul(utilizationRate).rayMul(pool.liquidityPremiumIndex);
+        ).rayMul(utilizationRate) + WadRayMath.RAY).rayMul(pool.liquidityPremiumIndex);
     }
 
     function getUtilizationRate(Types.Pool memory pool) internal view returns (uint256) {

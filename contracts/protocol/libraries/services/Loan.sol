@@ -24,13 +24,13 @@ library Loan {
     ) internal {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
-        Validation.validateInitLoan(pool, principal, termMonths, pool.config.baseRate + projectedLossRate);
+        Validation.validateInitLoan(pool, borrower, principal, termMonths, pool.config.baseRate + projectedLossRate);
         Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());
         uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
         uint256 aaveCollateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
-        uint256 adjustedLossRate = projectedLossRate.calculateAdjustedLossRate(principal, aaveBorrowBalance);
+        uint256 adjustedLossRate = projectedLossRate.calculateAdjustedLossRate(pool.amountGuaranteed, aaveBorrowBalance);
         vault.initLoan(borrower, principal, termMonths, adjustedLossRate, pool.config.baseRate); 
-        pool.ltvRatio = aaveBorrowBalance.rayDiv(aaveCollateralBalance);
+        pool.ltvRatio = aaveCollateralBalance == 0 ? 0 : aaveBorrowBalance.rayDiv(aaveCollateralBalance);
     }
 
     function repayLoan(
@@ -46,9 +46,11 @@ library Loan {
         uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
         (uint256 remainingInterest, uint256 interestRate) = vault.repay(pool.amountGuaranteed, aaveBorrowBalance, pool.config.baseRate, assets, msg.sender, onBehalfOf, loanId);
         uint256 aaveCollateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
-        pool.ltvRatio = aaveBorrowBalance.rayDiv(aaveCollateralBalance);
+        pool.ltvRatio = aaveCollateralBalance == 0 ? 0 : aaveBorrowBalance.rayDiv(aaveCollateralBalance);
         uint256 accruedToTreasury = remainingInterest.rayMul(pool.marginFee.rayDiv(interestRate));
         pool.accruedToTreasury += accruedToTreasury;
-        IPool(pool.aavePool).supply(vault.asset(), accruedToTreasury, pool.vault, 0);
+        if (accruedToTreasury > 0) {
+            IPool(pool.aavePool).supply(vault.asset(), accruedToTreasury, pool.vault, 0);
+        }
     }
 }
