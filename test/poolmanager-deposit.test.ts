@@ -52,10 +52,12 @@ describe("PoolManager Deposit", () => {
     });
 
     after(async () => {
-        await network.provider.request({
-            method: "hardhat_stopImpersonatingAccount",
-            params: [whale]
-        });
+        if (whale) {
+            await network.provider.request({
+                method: "hardhat_stopImpersonatingAccount",
+                params: [whale]
+            });
+        }
     });
 
     describe("Deposit Events", () => {

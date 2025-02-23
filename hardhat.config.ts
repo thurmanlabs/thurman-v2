@@ -1,7 +1,6 @@
-import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import { HardhatUserConfig } from "hardhat/config";
 import "@openzeppelin/hardhat-upgrades";
-import "@nomiclabs/hardhat-ethers";
 import "@nomicfoundation/hardhat-chai-matchers";
 import "solidity-coverage";
 import "hardhat-deploy";
@@ -20,11 +19,10 @@ const config: HardhatUserConfig = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 200,
+        runs: 200
       },
-      viaIR: true,
-    },
-    
+      viaIR: false
+    }
   },
   networks: {
     hardhat: {
@@ -33,7 +31,7 @@ const config: HardhatUserConfig = {
         url: POLYGON_MAINNET_RPC_URL,
         blockNumber: 67312309
       },
-      loggingEnabled: true,
+      loggingEnabled: false,
     },
     polygon: {
       url: POLYGON_MAINNET_RPC_URL,
@@ -65,7 +63,7 @@ const config: HardhatUserConfig = {
   },
   mocha: {
     timeout: 200000, // 200 seconds max for running tests
-  },
+  }
 };
 
 export default config;

@@ -5,6 +5,7 @@ import { IPool } from "../../typechain-types";
 import { PoolManager, ERC7540Vault, SToken, DToken } from "../../typechain-types";
 import { getAddresses } from "../../config/addresses";
 import { IERC20 } from "../../typechain-types";
+
 export interface TestEnv {
     deployer: HardhatEthersSigner;
     users: HardhatEthersSigner[];
@@ -77,7 +78,7 @@ export async function setupTestEnv(): Promise<TestEnv> {
     await vault.waitForDeployment();
     testEnv.vault = vault as unknown as ERC7540Vault;
 
-    testEnv.usdc = await ethers.getContractAt("IERC20", addresses.tokens.USDC);
+    testEnv.usdc = await ethers.getContractAt("IERC20", addresses.tokens.USDC, testEnv.deployer);
     testEnv.aUSDC = await ethers.getContractAt("IERC20", addresses.tokens.aUSDC);
     testEnv.aavePool = await ethers.getContractAt("IPool", addresses.aave.pool);
     

@@ -34,9 +34,14 @@ library InterestRate {
         uint256 baseRate
     ) internal returns (uint256, uint256) {
         // Check loan status (slot 1)
+        uint256 currentMonthlyPayment = LoanMath.calculateMonthlyPayment(
+            uint256(loan.principal),
+            loan.projectedLossRate + baseRate,
+            loan.termMonths
+        );
         if (loan.status != Types.Status.Active || 
             loan.currentPaymentIndex >= loan.termMonths) {
-            return (loan.monthlyPayment, loan.projectedLossRate);
+            return (currentMonthlyPayment, loan.projectedLossRate);
         }
 
         // Calculate new rate (slot 3) - keeping in WAD precision
@@ -47,20 +52,19 @@ library InterestRate {
         );
 
         if (newRate == loan.projectedLossRate) {
-            return (loan.monthlyPayment, loan.projectedLossRate);
+            return (currentMonthlyPayment, loan.projectedLossRate);
         }
 
         // Calculate new payment (slots 1, 2) - all rates in WAD
         uint256 newPayment = LoanMath.calculateMonthlyPayment(
             uint256(loan.principal),
-            newRate,  // Already in WAD from calculateAdjustedLossRate
+            newRate + baseRate,  // Already in WAD from calculateAdjustedLossRate
             loan.termMonths
         );
 
         // Update loan state (slots 3, 4) - store everything in WAD
-        loan.monthlyPayment = uint128(newPayment);
+        loan.remainingMonthlyPayment = uint128(newPayment);
         loan.projectedLossRate = uint128(newRate);
-        loan.interestRate = uint128(baseRate + newRate);  // Both in WAD
 
         return (newPayment, newRate);
     }

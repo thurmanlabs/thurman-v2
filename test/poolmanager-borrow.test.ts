@@ -51,10 +51,12 @@ describe("PoolManager Borrow", () => {
     });
 
     after(async () => {
-        await network.provider.request({
-            method: "hardhat_stopImpersonatingAccount",
-            params: [whale]
-        });
+        if (whale) {
+            await network.provider.request({
+                method: "hardhat_stopImpersonatingAccount",
+                params: [whale]
+            });
+        }
     });
 
     describe("Borrow Events", () => {
@@ -70,8 +72,6 @@ describe("PoolManager Borrow", () => {
             await deposit(testEnv, amount, userIndex);
 
             const pool = await poolManager.getPool(poolId);
-            console.log("pool ltv ratio: ", pool.ltvRatio);
-            console.log("pool ltv ratio cap: ", pool.config.ltvRatioCap);
             
             expect(await poolManager.connect(deployer)
                 .initLoan(poolId, users[borrowerIndex].address, loanAmount, 12, projectedLossRate))
@@ -108,8 +108,8 @@ describe("PoolManager Borrow", () => {
             
             // Time travel
             const thirtyDaysInSeconds = 30 * 24 * 60 * 60;
-            await ethers.provider.send("evm_increaseTime", [thirtyDaysInSeconds]);
-            await ethers.provider.send("evm_mine");
+            await network.provider.send("evm_increaseTime", [thirtyDaysInSeconds]);
+            await network.provider.send("evm_mine");
             
             // Approve vault to spend borrower's USDC
             await usdc.connect(users[borrowerIndex]).approve(String(vault.target), repayAmount);

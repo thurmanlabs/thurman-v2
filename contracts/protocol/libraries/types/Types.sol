@@ -81,14 +81,11 @@ library Types {
 
         // Slot 2: Principal and balance (256 bits)
         uint128 principal;          // 128 bits
-        uint128 remainingBalance;   // 128 bits
 
         // Slot 3: Rates (256 bits)
         uint128 projectedLossRate;  // 128 bits
-        uint128 interestRate;       // 128 bits
 
         // Slot 4: Payments (256 bits)
-        uint128 monthlyPayment;     // 128 bits
         uint128 remainingMonthlyPayment; // 128 bits
 
         // Slot 5: Timestamps and index (256 bits)

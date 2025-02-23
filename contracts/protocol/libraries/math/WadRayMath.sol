@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 pragma solidity ^0.8.24;
 
-import "hardhat/console.sol";
-
 /**
  * @title WadRayMath library
  * @author Aave
@@ -73,7 +71,6 @@ library WadRayMath {
     // to avoid overflow, a <= (type(uint256).max - HALF_RAY) / b
     uint256 maxA = (type(uint256).max - HALF_RAY) / b;
     if (a > maxA) {
-        console.log("rayMul overflow - a:", a, "maxA:", maxA);
         revert("WadRayMath: rayMul overflow");
     }
     c = (a * b + HALF_RAY) / RAY;
@@ -111,8 +108,6 @@ library WadRayMath {
     if (x == 0) return 0;
     if (x == RAY) return RAY;
 
-    console.log("rayPow - x:", x);
-
     z = RAY;
     uint256 baseValue = x;
 
@@ -120,7 +115,6 @@ library WadRayMath {
         if (n % 2 != 0) {
             uint256 newZ = rayMul(z, baseValue);
             if (newZ < z) {
-                console.log("rayPow overflow in z update");
                 revert("WadRayMath: multiplication overflow");
             }
             z = newZ;
@@ -129,7 +123,6 @@ library WadRayMath {
         if (n > 1) {
             uint256 newBase = rayMul(baseValue, baseValue);
             if (newBase < baseValue) {
-                console.log("rayPow overflow in base squaring");
                 revert("WadRayMath: base overflow");
             }
             baseValue = newBase;
