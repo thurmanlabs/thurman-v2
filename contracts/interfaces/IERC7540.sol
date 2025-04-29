@@ -242,8 +242,6 @@ interface IERC7540Vault is IERC4626 {
     /**
      * @dev Repays a loan for a given borrower.
      *
-     * @param amountGuaranteed the amount guaranteed by the pool
-     * @param aaveBorrowBalance the balance of the aave borrow
      * @param baseRate the base rate of the loan
      * @param assets the amount of assets to repay
      * @param caller the address of the caller repaying the loan
@@ -251,8 +249,6 @@ interface IERC7540Vault is IERC4626 {
      * @param loanId the ID of the loan
      */
     function repay(
-        uint256 amountGuaranteed,
-        uint256 aaveBorrowBalance,
         uint256 baseRate,
         uint256 assets, 
         address caller,

@@ -11,6 +11,17 @@ import {IVariableDebtToken} from "../../../interfaces/IVariableDebtToken.sol";
 library Deposit {
     using WadRayMath for uint256;
 
+    function setOperator(
+        mapping(uint16 => Types.Pool) storage pools,
+        uint16 poolId,
+        address operator,
+        bool approved
+    ) internal {
+        Types.Pool storage pool = pools[poolId];
+        IERC7540Vault vault = IERC7540Vault(pool.vault);
+        vault.setOperator(operator, approved);
+    }
+    
     function requestDeposit(
         mapping(uint16 => Types.Pool) storage pools,
         uint16 poolId,

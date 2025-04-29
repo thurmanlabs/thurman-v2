@@ -49,6 +49,10 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         }
     }
 
+    function setOperator(uint16 poolId, address operator, bool approved) external {
+        Deposit.setOperator(_pools, poolId, operator, approved);
+    }
+    
     function deposit(uint16 poolId, uint256 assets, address receiver) external {
         Deposit.deposit(_pools, poolId, assets, receiver);
     }
@@ -69,8 +73,8 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         Deposit.fulfillRedeem(_pools, poolId, assets, receiver);
     }
 
-    function requestDeposit(uint16 poolId, uint256 assets) external {
-        Deposit.requestDeposit(_pools, poolId, assets, msg.sender, msg.sender);
+    function requestDeposit(uint16 poolId, uint256 assets, address controller) external {
+        Deposit.requestDeposit(_pools, poolId, assets, controller, msg.sender);
     }
 
     function initLoan(

@@ -3,7 +3,7 @@ import { TestEnv } from "../test/helpers/setupTests";
 export async function requestDeposit(testEnv: TestEnv, amount: bigint, userIndex: number) {
     const { poolManager, users, vault, usdc } = testEnv;
     await usdc.connect(users[userIndex]).approve(String(vault.target), amount);
-    await poolManager.connect(users[userIndex]).requestDeposit(0, amount);
+    await poolManager.connect(users[userIndex]).requestDeposit(0, amount, users[userIndex].address);
 }
 
 export async function fulfillDeposit(testEnv: TestEnv, amount: bigint, userIndex: number) {

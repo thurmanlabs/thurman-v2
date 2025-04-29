@@ -21,7 +21,7 @@ const config: HardhatUserConfig = {
         enabled: true,
         runs: 200
       },
-      viaIR: false
+      viaIR: true
     }
   },
   networks: {
@@ -32,6 +32,7 @@ const config: HardhatUserConfig = {
         blockNumber: 67312309
       },
       loggingEnabled: false,
+      allowUnlimitedContractSize: true
     },
     polygon: {
       url: POLYGON_MAINNET_RPC_URL,
@@ -63,7 +64,7 @@ const config: HardhatUserConfig = {
   },
   mocha: {
     timeout: 200000, // 200 seconds max for running tests
-  }
+  },
 };
 
 export default config;

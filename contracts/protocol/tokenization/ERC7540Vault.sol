@@ -217,11 +217,6 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
             lastUpdateTimestamp: uint40(block.timestamp)
         }));
 
-        // Execute loan
-        _executeLoan(pool, borrower, principal);
-    }
-
-    function _executeLoan(Types.Pool memory pool, address borrower, uint256 principal) internal {
         IERC20(asset()).approve(pool.aavePool, principal);
         IPool(pool.aavePool).borrow(asset(), principal, 2, 0, address(this));
         IDToken(dToken).mint(borrower, principal);
@@ -229,8 +224,6 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     }
 
     function repay(
-        uint256 amountGuaranteed,
-        uint256 aaveBorrowBalance,
         uint256 baseRate,
         uint256 assets,
         address caller,
@@ -238,23 +231,21 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         uint256 loanId
     ) external onlyPoolManager returns (uint256 remainingInterest, uint256 interestRate) {
         Types.Loan storage loan = loans[onBehalfOf][loanId];
+        address aavePool = IPoolManager(poolManager).getPool(poolId).aavePool;
         uint256 remainingBalance = IDToken(dToken).balanceOf(onBehalfOf);
         require(loan.status == Types.Status.Active, "ERC7540Vault/loan-not-active");
         require(remainingBalance >= assets, "ERC7540Vault/insufficient-loan-balance");
 
-        // Calculate payments
         (uint256 principal, uint256 interest,) = _calculateRepayAmounts(
-            loan, remainingBalance, amountGuaranteed, aaveBorrowBalance, baseRate, assets
+            loan, remainingBalance, baseRate, assets
         );
 
-        // Update loan state
-        _updateLoanState(loan, remainingBalance, assets);
+        (uint256 balanceIncrease, uint256 aavePaymentAmount) = _updateLoanState(loan, aavePool, principal, remainingBalance, assets);
 
-        // Handle Aave repayment
-        (uint256 balanceIncrease, uint256 aavePaymentAmount) = _handleAaveRepayment(loan, principal);
-
-        // Execute transfers
-        _executeRepayTransfers(caller, onBehalfOf, assets, aavePaymentAmount, principal);
+        IERC20(asset()).transferFrom(caller, address(this), assets);
+        IERC20(asset()).approve(aavePool, aavePaymentAmount);
+        IPool(aavePool).repay(asset(), aavePaymentAmount, 2, address(this));
+        IDToken(dToken).burn(onBehalfOf, principal);
 
         emit LoanRepaid(loanId, onBehalfOf, principal, interest);
         return (interest - balanceIncrease, loan.projectedLossRate + baseRate);
@@ -264,15 +255,11 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     function _calculateRepayAmounts(
         Types.Loan storage loan,
         uint256 remainingBalance,
-        uint256 amountGuaranteed,
-        uint256 aaveBorrowBalance,
         uint256 baseRate,
         uint256 assets
     ) private returns (uint256, uint256, uint256) {
         loan.currentPaymentIndex++;
-        (uint256 remainingInterest, ) = loan.getCurrentMonthlyPayment(
-            amountGuaranteed, 
-            aaveBorrowBalance, 
+        (uint256 remainingInterest, ) = loan.getCurrentMonthlyPayment(   
             baseRate
         );
         uint256 interest = _getMonthlyInterest(loan, remainingBalance);
@@ -283,9 +270,11 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     // Update loan state based on payment
     function _updateLoanState(
         Types.Loan storage loan,
+        address aavePool,
+        uint256 principal,
         uint256 remainingBalance,
         uint256 assets
-    ) private {
+    ) private returns (uint256, uint256) {
         if (loan.remainingMonthlyPayment > assets) {
             loan.remainingMonthlyPayment = loan.remainingMonthlyPayment - uint128(assets);
         } else {
@@ -296,15 +285,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         if (remainingBalance == 0) {
             loan.status = Types.Status.Closed;
         }
-    }
 
-    // Handle Aave protocol interaction
-    function _handleAaveRepayment(
-        Types.Loan storage loan,
-        uint256 principal
-    ) private returns (uint256, uint256) {
-        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
-        uint256 currentBorrowerIndex = IPool(pool.aavePool).getReserveData(asset()).variableBorrowIndex;
+        uint256 currentBorrowerIndex = IPool(aavePool).getReserveData(asset()).variableBorrowIndex;
         
         uint256 balanceIncrease = loan.aaveBalance
             .rayMul(currentBorrowerIndex.rayDiv(loan.currentBorrowerIndex) - WadRayMath.RAY);
@@ -312,24 +294,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         loan.currentBorrowerIndex = uint176(currentBorrowerIndex);
         uint256 aavePaymentAmount = principal + balanceIncrease;
         loan.aaveBalance = loan.aaveBalance + balanceIncrease - aavePaymentAmount;
-        
         return (balanceIncrease, aavePaymentAmount);
-    }
-
-    // Execute token transfers
-    function _executeRepayTransfers(
-        address caller,
-        address onBehalfOf,
-        uint256 assets,
-        uint256 aavePaymentAmount,
-        uint256 principal
-    ) private {
-        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
-        
-        IERC20(asset()).transferFrom(caller, address(this), assets);
-        IERC20(asset()).approve(pool.aavePool, aavePaymentAmount);
-        IPool(pool.aavePool).repay(asset(), aavePaymentAmount, 2, address(this));
-        IDToken(dToken).burn(onBehalfOf, principal);
     }
 
     function guarantee(uint256 assets, address caller) external onlyPoolManager {

@@ -8,6 +8,14 @@ interface IPoolManager {
     event MintedToTreasury(uint16 indexed poolId, uint256 amountMinted);
     
     /**
+     * @dev Sets the operator for the pool manager
+     * @param poolId The ID of the pool to set the operator for
+     * @param operator The address of the operator
+     * @param approved The approval status
+     */
+    function setOperator(uint16 poolId, address operator, bool approved) external;
+
+    /**
      * @dev Transfers assets from sender into the Vault attached to the pool and submits a Request for asynchronous deposit.
      *
      * - MUST support ERC-20 approve / transferFrom on asset as a deposit Request flow.
@@ -17,10 +25,10 @@ interface IPoolManager {
      *
      * @param poolId the id of the pool to deposit into
      * @param assets the amount of deposit assets to transfer from owner
-     *
+     * @param controller the address that will receive the shares
      * NOTE: most implementations will require pre-approval of the Vault with the Vault's underlying asset token.
      */
-    function requestDeposit(uint16 poolId, uint256 assets) external;
+    function requestDeposit(uint16 poolId, uint256 assets, address controller) external;
 
     /**
      * @dev Fulfills a deposit request for a given pool.

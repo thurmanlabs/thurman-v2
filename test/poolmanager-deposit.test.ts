@@ -62,11 +62,19 @@ describe("PoolManager Deposit", () => {
 
     describe("Deposit Events", () => {
 
+        it("should set operator", async () => {
+            const { deployer, users, poolManager, usdc, vault } = testEnv;
+            const poolId = 0;
+            const userIndex = 0;
+            expect(await poolManager.connect(users[userIndex]).setOperator(poolId, deployer.address, true))
+                .to.emit(vault, "OperatorSet");
+        });
+
         it("should request deposit", async () => {
-            const { poolManager, usdc, vault } = testEnv;
+            const { deployer, poolManager, usdc, vault } = testEnv;
             const amount = ethers.parseUnits("1", 6);
             await usdc.approve(vault.target.toString(), amount);
-            expect(await poolManager.requestDeposit(0, amount))
+            expect(await poolManager.requestDeposit(0, amount, deployer.address))
                 .to.emit(vault, "DepositRequest");           
         });
 
@@ -124,6 +132,20 @@ describe("PoolManager Deposit", () => {
             expect(await poolManager.connect(users[userIndex])
                 .redeem(poolId, amount, users[userIndex].address))
                 .to.emit(vault, "Withdraw");
+        });
+    });
+
+    describe("Deposit Request Validation", () => {
+        it("should not allow a user to request a deposit if they are not the owner", async () => {
+            const { users, poolManager, vault, usdc, deployer } = testEnv;
+            const poolId = 0;
+            const userIndex = 0;
+            const amount = ethers.parseUnits("1", 6);
+            await usdc.connect(users[userIndex]).approve(vault.target.toString(), amount);
+            await expect(poolManager.connect(users[userIndex])
+                .requestDeposit(poolId, amount, deployer.address))
+                .to.be.revertedWith("ERC7540Vault/invalid-controller");
+
         });
     });
 });
