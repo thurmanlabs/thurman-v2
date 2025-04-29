@@ -83,7 +83,7 @@ library Types {
         uint128 principal;          // 128 bits
 
         // Slot 3: Rates (256 bits)
-        uint128 projectedLossRate;  // 128 bits
+        uint128 interestRate;  // 128 bits
 
         // Slot 4: Payments (256 bits)
         uint128 remainingMonthlyPayment; // 128 bits
@@ -95,6 +95,10 @@ library Types {
 
         // Slot 6: Aave balance (256 bits)
         uint256 aaveBalance;        // Full slot
+        /// @dev The address of the originator of the loan
+        address originator;
+        /// @dev The amount of interest retained by the originator
+        uint256 retentionRate;
     }
 
     enum Status {
@@ -139,8 +143,6 @@ library Types {
     }
 
     struct PoolConfig {
-        /// @dev The base interest rate of loans in the pool
-        uint256 baseRate;
         /// @dev The ltv ratio cap
         uint256 ltvRatioCap;
         /// @dev The collateral cushion for individual loans expressed in ray

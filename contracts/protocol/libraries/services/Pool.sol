@@ -22,7 +22,6 @@ library Pool {
         address aavePool,
         uint256 collateralCushion,
         uint256 ltvRatioCap,
-        uint256 baseRate,
         uint256 liquidityPremiumRate,
         uint256 marginFee,
         uint16 poolCount
@@ -31,7 +30,6 @@ library Pool {
         pools[poolCount].aavePool = aavePool;
         pools[poolCount].config.collateralCushion = collateralCushion;
         pools[poolCount].config.ltvRatioCap = ltvRatioCap;
-        pools[poolCount].config.baseRate = baseRate;
         pools[poolCount].config.liquidityPremiumRate = liquidityPremiumRate;
         pools[poolCount].config.marginFee = marginFee;
         pools[poolCount].liquidityPremiumIndex = WadRayMath.RAY;

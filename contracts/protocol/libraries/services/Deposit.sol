@@ -101,15 +101,4 @@ library Deposit {
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         vault.redeem(assets, msg.sender, receiver);
     }
-
-    function guarantee(
-        mapping(uint16 => Types.Pool) storage pools,
-        uint16 poolId,
-        uint256 assets
-    ) internal {
-        Types.Pool storage pool = pools[poolId];
-        IERC7540Vault vault = IERC7540Vault(pool.vault);
-        vault.guarantee(assets, msg.sender);
-        pool.amountGuaranteed += assets;
-    }
 }

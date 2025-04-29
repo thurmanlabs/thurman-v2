@@ -108,22 +108,10 @@ interface IPoolManager {
     ) external;
 
     /**
-     * @dev Guarantees the loan pool for a given vault.
-     *
-     * @param poolId the id of the pool to guarantee
-     * @param assets the amount of assets to guarantee
-     */
-    function guarantee(
-        uint16 poolId,
-        uint256 assets
-    ) external;
-
-    /**
     * @dev Adds a new pool to the pool manager
     * @param vault The address of the vault to add
     * @param collateralCushion The collateral cushion for the pool
     * @param ltvRatioCap The ltv ratio cap for the pool
-    * @param baseRate The base interest rate for loans in the pool
     * @param liquidityPremiumRate The liquidity premium rate for the pool
     * @param marginFee The margin fee for the pool
     */
@@ -132,7 +120,6 @@ interface IPoolManager {
         address aavePool,
         uint256 collateralCushion,
         uint256 ltvRatioCap,
-        uint256 baseRate,
         uint256 liquidityPremiumRate,
         uint256 marginFee
     ) external;

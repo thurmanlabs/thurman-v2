@@ -30,7 +30,6 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         address aavePool,
         uint256 collateralCushion,
         uint256 ltvRatioCap,
-        uint256 baseRate,
         uint256 liquidityPremiumRate,
         uint256 marginFee
     ) external onlyOwner {
@@ -40,7 +39,6 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
                 aavePool, 
                 collateralCushion, 
                 ltvRatioCap, 
-                baseRate,
                 liquidityPremiumRate,
                 marginFee,
                 _poolCount
@@ -94,13 +92,6 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         uint256 loanId
     ) external {
         Loan.repayLoan(_pools, poolId, assets, onBehalfOf, loanId);
-    }
-
-    function guarantee(
-        uint16 poolId,
-        uint256 assets
-    ) external {
-        Deposit.guarantee(_pools, poolId, assets);
     }
     
     function mintToTreasury(uint16 poolId, uint256 amount) external {

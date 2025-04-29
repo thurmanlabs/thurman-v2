@@ -227,45 +227,35 @@ interface IERC7540Vault is IERC4626 {
      * @dev Initializes a loan for a borrower.
      *
      * @param borrower the address of the borrower
+     * @param originator the address of the originator
+     * @param retentionRate the retention rate of the loan
      * @param principal the principal amount of the loan
      * @param termMonths the term of the loan in months
-     * @param projectedLossRate the projected loss rate of the loan
+     * @param interestRate the interest rate of the loan
      */
     function initLoan(
         address borrower,
+        address originator,
+        uint256 retentionRate,
         uint256 principal, 
         uint16 termMonths,
-        uint256 projectedLossRate,
-        uint256 baseRate
+        uint256 interestRate
     ) external;
 
     /**
      * @dev Repays a loan for a given borrower.
      *
-     * @param baseRate the base rate of the loan
      * @param assets the amount of assets to repay
      * @param caller the address of the caller repaying the loan
      * @param onBehalfOf the address of the borrower
      * @param loanId the ID of the loan
      */
     function repay(
-        uint256 baseRate,
         uint256 assets, 
         address caller,
         address onBehalfOf,
         uint256 loanId
     ) external returns (uint256 remainingInterest, uint256 interestRate); 
-
-    /**
-     * @dev Guarantees the loan pool for a given vault.
-     *
-     * @param assets the amount of assets to guarantee
-     * @param caller the address of the caller guaranteeing the loan
-     */
-    function guarantee(
-        uint256 assets,
-        address caller
-    ) external;
 
     /**
      * @dev Returns the address of the share token.

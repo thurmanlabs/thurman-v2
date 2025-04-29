@@ -189,24 +189,25 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
 
     function initLoan(
         address borrower, 
+        address originator,
+        uint256 retentionRate,
         uint256 principal, 
         uint16 termMonths,
-        uint256 projectedLossRate,
-        uint256 baseRate
+        uint256 interestRate
     ) external onlyPoolManager {
         Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
-        Validation.validateInitLoan(pool, borrower, principal, termMonths, projectedLossRate);
+        Validation.validateInitLoan(pool, borrower, principal, termMonths, interestRate);
         
         uint256 payment = LoanMath.calculateMonthlyPayment(
             principal,
-            projectedLossRate + baseRate,
+            interestRate,
             termMonths
         );
 
         loans[borrower].push(Types.Loan({
             id: uint96(nextLoanId++),
             principal: uint128(principal),
-            projectedLossRate: uint128(projectedLossRate),
+            interestRate: uint128(interestRate),
             termMonths: termMonths,
             nextPaymentDate: uint40(block.timestamp + 30 days),
             aaveBalance: principal,
@@ -214,7 +215,9 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
             currentPaymentIndex: 0,
             status: Types.Status.Active,
             currentBorrowerIndex: uint176(IPool(pool.aavePool).getReserveData(asset()).variableBorrowIndex),
-            lastUpdateTimestamp: uint40(block.timestamp)
+            lastUpdateTimestamp: uint40(block.timestamp),
+            originator: originator,
+            retentionRate: retentionRate
         }));
 
         IERC20(asset()).approve(pool.aavePool, principal);
@@ -224,7 +227,6 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     }
 
     function repay(
-        uint256 baseRate,
         uint256 assets,
         address caller,
         address onBehalfOf,
@@ -237,7 +239,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         require(remainingBalance >= assets, "ERC7540Vault/insufficient-loan-balance");
 
         (uint256 principal, uint256 interest,) = _calculateRepayAmounts(
-            loan, remainingBalance, baseRate, assets
+            loan, remainingBalance, assets
         );
 
         (uint256 balanceIncrease, uint256 aavePaymentAmount) = _updateLoanState(loan, aavePool, principal, remainingBalance, assets);
@@ -248,20 +250,17 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         IDToken(dToken).burn(onBehalfOf, principal);
 
         emit LoanRepaid(loanId, onBehalfOf, principal, interest);
-        return (interest - balanceIncrease, loan.projectedLossRate + baseRate);
+        return (interest - balanceIncrease, loan.interestRate);
     }
 
     // Calculate principal and interest portions
     function _calculateRepayAmounts(
         Types.Loan storage loan,
         uint256 remainingBalance,
-        uint256 baseRate,
         uint256 assets
     ) private returns (uint256, uint256, uint256) {
         loan.currentPaymentIndex++;
-        (uint256 remainingInterest, ) = loan.getCurrentMonthlyPayment(   
-            baseRate
-        );
+        (uint256 remainingInterest, ) = loan.getCurrentMonthlyPayment();
         uint256 interest = _getMonthlyInterest(loan, remainingBalance);
         uint256 principal = assets - interest;
         return (principal, interest, remainingInterest);
@@ -295,15 +294,6 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         uint256 aavePaymentAmount = principal + balanceIncrease;
         loan.aaveBalance = loan.aaveBalance + balanceIncrease - aavePaymentAmount;
         return (balanceIncrease, aavePaymentAmount);
-    }
-
-    function guarantee(uint256 assets, address caller) external onlyPoolManager {
-        Validation.validateGuarantee(address(this), assets);
-        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
-        IERC20(asset()).transferFrom(caller, address(this), assets);
-        IERC20(asset()).approve(pool.aavePool, assets);
-        IPool(pool.aavePool).supply(asset(), assets, address(this), 0);
-        emit PoolGuaranteed(address(this), caller, assets);
     }
 
     function pendingRedeemRequest(uint256, address controller) external view returns (uint256) {
@@ -349,7 +339,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     }
 
     function _getMonthlyInterest(Types.Loan memory loan, uint256 remainingBalance) public pure returns (uint256) {
-        return remainingBalance.rayMul(loan.projectedLossRate).rayDiv(12);
+        return remainingBalance.rayMul(loan.interestRate).rayDiv(12);
     }
 
      // Helper function to get days in month
