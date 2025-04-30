@@ -1,0 +1,215 @@
+// SPDX-License-Identifier: GPL-2.0
+pragma solidity ^0.8.24;
+
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {IERC7540Vault} from "../../interfaces/IERC7540.sol";
+import {IPool} from "../../interfaces/IPool.sol";
+import {ILoanManager} from "../../interfaces/ILoanManager.sol";
+import {Types} from "../libraries/types/Types.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {LoanMath} from "../libraries/math/LoanMath.sol";
+import {WadRayMath} from "../libraries/math/WadRayMath.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+
+contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
+    using WadRayMath for uint256;
+    using SafeCast for uint256;
+
+    address vault;
+    uint256 public nextLoanId;
+    mapping(address => Types.Loan[]) public loans;
+
+    modifier onlyVault() {
+        require(msg.sender == vault, "LoanManager/only-vault");
+        _;
+    }
+
+        /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+    
+    function initialize(address _vault) external virtual initializer {
+        __Ownable_init(msg.sender);
+        vault = _vault;
+    }
+
+    
+    function createLoan(
+        address borrower,
+        address originator,
+        uint256 retentionRate,
+        uint256 principal,
+        uint16 termMonths,
+        uint256 interestRate,
+        uint256 currentBorrowerIndex
+    ) external onlyVault returns (Types.Loan memory loan) {
+        uint256 payment = LoanMath.calculateMonthlyPayment(
+            principal,
+            interestRate,
+            termMonths
+        );
+        
+        loans[borrower].push(Types.Loan({
+            id: uint96(nextLoanId++),
+            principal: uint128(principal),
+            interestRate: uint128(interestRate),
+            termMonths: termMonths,
+            nextPaymentDate: uint40(block.timestamp + 30 days),
+            aaveBalance: principal,
+            remainingMonthlyPayment: uint128(payment),
+            currentPaymentIndex: 0,
+            status: Types.Status.Active,
+            currentBorrowerIndex: uint176(currentBorrowerIndex),
+            lastUpdateTimestamp: uint40(block.timestamp),
+            originator: originator,
+            retentionRate: retentionRate
+        }));
+
+        return loans[borrower][loans[borrower].length - 1];
+    }
+
+    function processRepayment(
+        uint256 assets,
+        address onBehalfOf,
+        uint256 loanId
+    ) external onlyVault returns (
+        uint256 principalPortion,
+        uint256 interestPortion,
+        uint256 remainingInterest
+    ) {
+        require(loanId < loans[onBehalfOf].length, "LoanManager/invalid-loan-id");
+        Types.Loan storage loan = loans[onBehalfOf][loanId];
+        require(loan.status == Types.Status.Active, "LoanManager/loan-not-active");
+
+        address dTokenAddress = IERC7540Vault(vault).getDToken();
+        uint256 remainingBalance = IERC20(dTokenAddress).balanceOf(onBehalfOf);
+        require(remainingBalance > 0, "LoanManager/loan-fully-repaid");
+
+        uint256 currentTimestamp = block.timestamp;
+        
+        uint256 currentBorrowerIndex = IPool(
+            IERC7540Vault(vault).getAavePoolAddress()
+        ).getReserveData(IERC7540Vault(vault).asset()).variableBorrowIndex;
+
+        uint256 balanceIncrease = loan.aaveBalance
+            .rayMul(currentBorrowerIndex.rayDiv(loan.currentBorrowerIndex) - WadRayMath.RAY);
+    
+        uint256 totalInterestDue = LoanMath.calculateMonthlyInterest(loan, remainingBalance);
+
+        // Interest always gets paid first
+        uint256 scheduledPayment = loan.remainingMonthlyPayment;
+        interestPortion = (assets >= totalInterestDue) ? totalInterestDue : assets;
+
+        // Remaining payment goes to principal
+        principalPortion = assets - interestPortion;
+        
+        // Ensure we don't repay more than the remaining balance
+        if (principalPortion > remainingBalance) {
+            principalPortion = remainingBalance;
+            // Adjust total payment to match what's actually being applied
+            assets = interestPortion + principalPortion;
+        }
+
+        // 3. Update loan state
+        if (assets >= scheduledPayment) {
+            // Full or excess payment - reset monthly payment and advance next payment date
+            loan.remainingMonthlyPayment = 0;
+            loan.nextPaymentDate = uint40(
+                loan.nextPaymentDate + calculateDaysToNextPayment(loan.nextPaymentDate) * 1 days
+            );
+            loan.currentPaymentIndex++;
+        } else {
+            // Partial payment - reduce remaining monthly payment
+            loan.remainingMonthlyPayment = uint128(scheduledPayment - assets);
+        }
+
+        // 4. Handle Aave repayment amount calculation
+        uint256 aavePaymentAmount = calculateAaveRepaymentAmount(
+            principalPortion,
+            balanceIncrease,
+            loan.aaveBalance
+        );
+    
+        // 5. Update loan tracking data
+        loan.aaveBalance = loan.aaveBalance + balanceIncrease - aavePaymentAmount;
+        loan.currentBorrowerIndex = uint176(currentBorrowerIndex);
+        loan.lastUpdateTimestamp = uint40(currentTimestamp);
+        
+        // 6. Check if loan is fully paid
+        if (remainingBalance == principalPortion) {
+            loan.status = Types.Status.Closed;
+        }
+        
+        // Return values needed by the vault
+        remainingInterest = totalInterestDue - interestPortion;
+        return (principalPortion, interestPortion, remainingInterest);
+        
+    }
+
+    function getLoan(address borrower, uint256 loanId) external view returns (Types.Loan memory) {
+        return loans[borrower][loanId];
+    }
+
+    /**
+    * @notice Calculate how many days until the next payment date
+    * @param nextPaymentDate The current next payment date timestamp
+    * @return days The number of days until next payment
+    */
+    function calculateDaysToNextPayment(uint40 nextPaymentDate) internal view returns (uint256) {
+        // If payment date is in the past, use standard 30 days
+        if (nextPaymentDate <= block.timestamp) {
+            return 30;
+        }
+        
+        // Get current date components
+        uint256 currentYear = block.timestamp / (365 days);
+        uint256 currentMonth = (block.timestamp % (365 days)) / (30 days);
+        
+        // Calculate days in the current month (simplified version)
+        uint8[12] memory daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        
+        // Adjust February for leap years
+        if (currentMonth == 1 && isLeapYear(currentYear)) {
+            daysInMonth[1] = 29;
+        }
+        
+        return daysInMonth[currentMonth];
+    }
+
+    /**
+    * @notice Check if a year is a leap year
+    * @param year The year to check
+    * @return True if leap year
+    */
+    function isLeapYear(uint256 year) internal pure returns (bool) {
+        return (year % 4 == 0) && ((year % 100 != 0) || (year % 400 == 0));
+    }
+
+    /**
+    * @notice Calculate the amount to repay to Aave
+    * @param principalPortion Principal being repaid
+    * @param balanceIncrease Interest accrued from Aave's variable rate
+    * @param currentAaveBalance Current balance owed to Aave
+    * @return The amount to repay to Aave
+    */
+    function calculateAaveRepaymentAmount(
+        uint256 principalPortion,
+        uint256 balanceIncrease,
+        uint256 currentAaveBalance
+    ) internal pure returns (uint256) {
+        // Always repay accrued interest to Aave
+        uint256 aavePaymentAmount = balanceIncrease;
+        
+        // Add principal payment
+        aavePaymentAmount += principalPortion;
+        
+        // Ensure we don't try to repay more than owed to Aave
+        if (aavePaymentAmount > currentAaveBalance + balanceIncrease) {
+            aavePaymentAmount = currentAaveBalance + balanceIncrease;
+        }
+        
+        return aavePaymentAmount;
+    }
+}

@@ -312,6 +312,14 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         return userVaultData[user];
     }
 
+    function getAavePoolAddress() external view returns (address) {
+        return IPoolManager(poolManager).getPool(poolId).aavePool;
+    }
+
+    function getDToken() external view returns (address) {
+        return dToken;
+    }
+
     function getLoan(address borrower, uint256 loanId) external view returns (Types.Loan memory loan) {
         return loans[borrower][loanId];
     }

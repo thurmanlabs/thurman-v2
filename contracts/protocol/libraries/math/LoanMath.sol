@@ -18,4 +18,11 @@ library LoanMath {
         return principal * (interestRate / 12) * rateFactorWad / 
                (WadRayMath.WAD * (rateFactorWad - WadRayMath.WAD));
     }
+
+    function calculateMonthlyInterest(
+        Types.Loan memory loan,
+        uint256 remainingBalance
+    ) internal pure returns (uint256) {
+        return remainingBalance.rayMul(loan.interestRate).rayDiv(12);
+    }
 } 
