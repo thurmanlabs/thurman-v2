@@ -78,11 +78,22 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
     function initLoan(
         uint16 poolId,
         address borrower,
+        address originator,
+        uint256 retentionRate,
         uint256 principal,
         uint16 termMonths,
-        uint256 projectedLossRate
+        uint256 interestRate
     ) external onlyOwner {
-        Loan.initLoan(_pools, poolId, borrower, principal, termMonths, projectedLossRate);
+        Loan.initLoan(
+            _pools, 
+            poolId, 
+            borrower, 
+            originator, 
+            retentionRate, 
+            principal, 
+            termMonths, 
+            interestRate
+        );
     }
 
     function repayLoan(

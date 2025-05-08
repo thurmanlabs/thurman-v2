@@ -18,18 +18,20 @@ library Loan {
         mapping(uint16 => Types.Pool) storage pools,
         uint16 poolId,
         address borrower,
+        address originator,
+        uint256 retentionRate,
         uint256 principal,
         uint16 termMonths,
-        uint256 projectedLossRate
+        uint256 interestRate
     ) internal {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
-        Validation.validateInitLoan(pool, borrower, principal, termMonths, pool.config.baseRate + projectedLossRate);
+        Validation.validateInitLoan(pool, borrower, principal, termMonths, interestRate);
         Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());
         uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
         uint256 aaveCollateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
-        uint256 adjustedLossRate = projectedLossRate.calculateAdjustedLossRate(pool.amountGuaranteed, aaveBorrowBalance);
-        vault.initLoan(borrower, principal, termMonths, adjustedLossRate, pool.config.baseRate); 
+        vault.initLoan(borrower, originator, retentionRate, principal, termMonths, interestRate);
+        pool.ltvRatio = aaveCollateralBalance == 0 ? 0 : aaveBorrowBalance.rayDiv(aaveCollateralBalance);
         pool.ltvRatio = aaveCollateralBalance == 0 ? 0 : aaveBorrowBalance.rayDiv(aaveCollateralBalance);
     }
 
@@ -44,7 +46,7 @@ library Loan {
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());
         uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
-        (uint256 remainingInterest, uint256 interestRate) = vault.repay(pool.config.baseRate, assets, msg.sender, onBehalfOf, loanId);
+        (uint256 remainingInterest, uint256 interestRate) = vault.repay(assets, msg.sender, onBehalfOf, loanId);
         uint256 aaveCollateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
         pool.ltvRatio = aaveCollateralBalance == 0 ? 0 : aaveBorrowBalance.rayDiv(aaveCollateralBalance);
         uint256 accruedToTreasury = remainingInterest.rayMul(pool.marginFee.rayDiv(interestRate));

@@ -80,16 +80,20 @@ interface IPoolManager {
      *
      * @param poolId the id of the pool to initialize the loan for
      * @param borrower the address of the borrower
+     * @param originator the address of the originator
+     * @param retentionRate the retention rate of the loan
      * @param principal the principal amount of the loan
      * @param termMonths the term of the loan in months
-     * @param projectedLossRate the projected loss rate of the loan
+     * @param interestRate the interest rate of the loan
      */
     function initLoan(
         uint16 poolId, 
         address borrower, 
+        address originator,
+        uint256 retentionRate,
         uint256 principal, 
         uint16 termMonths, 
-        uint256 projectedLossRate
+        uint256 interestRate
     ) external;
 
     /**

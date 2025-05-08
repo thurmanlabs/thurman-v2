@@ -8,7 +8,6 @@ interface ILoanManager {
     /**
      * @dev Creates a new loan.
      *
-     * @param borrower The address of the borrower.
      * @param originator The address of the originator.
      * @param retentionRate The retention rate of the loan.
      * @param principal The principal amount of the loan.
@@ -18,7 +17,7 @@ interface ILoanManager {
      * @return loan The new loan.
      */
     function createLoan(
-        address borrower,
+        uint256 loanId,
         address originator,
         uint256 retentionRate,
         uint256 principal,
@@ -30,27 +29,27 @@ interface ILoanManager {
     /**
      * @dev Processes a repayment.
      *
+     * @param loan The loan to process.
+     * @param vault The vault of the loan.
      * @param assets The amount of assets to repay.
      * @param onBehalfOf The address of the on behalf of.
-     * @param loanId The id of the loan.    
+     * @return updatedLoan The updated loan.
      * @return principalPortion The principal portion.
      * @return interestPortion The interest portion.
      * @return remainingInterest The remaining interest.
+     * @return aavePaymentAmount The amount of aave to pay.
      */
     function processRepayment(
+        Types.Loan memory loan,
+        address vault,
         uint256 assets,
-        address onBehalfOf,
-        uint256 loanId
-    ) external returns (uint256 principalPortion, uint256 interestPortion, uint256 remainingInterest);
-
-    
-    /**
-     * @dev Gets a loan.
-     *
-     * @param borrower The address of the borrower.
-     * @param loanId The id of the loan.
-     * @return loan The loan.
-     */
-    function getLoan(address borrower, uint256 loanId) external view returns (Types.Loan memory);
+        address onBehalfOf
+    ) external returns (
+        Types.Loan memory updatedLoan, 
+        uint256 principalPortion, 
+        uint256 interestPortion, 
+        uint256 remainingInterest, 
+        uint256 aavePaymentAmount
+    );
         
 }

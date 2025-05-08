@@ -66,12 +66,12 @@ library Validation {
         address borrower,
         uint256 principal,
         uint16 termMonths,
-        uint256 projectedLossRate
+        uint256 interestRate
     ) internal view {
         require(borrower != address(0), "PoolManager/invalid-borrower");
         require(principal > 0, "ERC7540Vault/invalid-principal");
         require(termMonths > 0, "ERC7540Vault/invalid-term");
-        require(projectedLossRate > 0, "ERC7540Vault/invalid-projected-loss-rate");
+        require(interestRate > 0, "ERC7540Vault/invalid-interest-rate");
         // Get current collateral
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());

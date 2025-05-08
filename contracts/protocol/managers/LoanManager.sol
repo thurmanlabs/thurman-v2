@@ -16,43 +16,33 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
     using WadRayMath for uint256;
     using SafeCast for uint256;
 
-    address vault;
-    uint256 public nextLoanId;
-    mapping(address => Types.Loan[]) public loans;
-
-    modifier onlyVault() {
-        require(msg.sender == vault, "LoanManager/only-vault");
-        _;
-    }
-
         /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
     
-    function initialize(address _vault) external virtual initializer {
+    function initialize() external virtual initializer {
         __Ownable_init(msg.sender);
-        vault = _vault;
     }
 
     
     function createLoan(
-        address borrower,
+        uint256 loanId,
         address originator,
         uint256 retentionRate,
         uint256 principal,
         uint16 termMonths,
         uint256 interestRate,
         uint256 currentBorrowerIndex
-    ) external onlyVault returns (Types.Loan memory loan) {
+    ) external view returns (Types.Loan memory loan) {
         uint256 payment = LoanMath.calculateMonthlyPayment(
             principal,
             interestRate,
             termMonths
         );
         
-        loans[borrower].push(Types.Loan({
-            id: uint96(nextLoanId++),
+        loan = Types.Loan({
+            id: uint96(loanId),
             principal: uint128(principal),
             interestRate: uint128(interestRate),
             termMonths: termMonths,
@@ -65,22 +55,23 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
             lastUpdateTimestamp: uint40(block.timestamp),
             originator: originator,
             retentionRate: retentionRate
-        }));
+        });
 
-        return loans[borrower][loans[borrower].length - 1];
+        return loan;
     }
 
     function processRepayment(
+        Types.Loan memory loan,
+        address vault,
         uint256 assets,
-        address onBehalfOf,
-        uint256 loanId
-    ) external onlyVault returns (
+        address onBehalfOf
+    ) external view returns (
+        Types.Loan memory updatedLoan,
         uint256 principalPortion,
         uint256 interestPortion,
-        uint256 remainingInterest
+        uint256 remainingInterest,
+        uint256 aavePaymentAmount
     ) {
-        require(loanId < loans[onBehalfOf].length, "LoanManager/invalid-loan-id");
-        Types.Loan storage loan = loans[onBehalfOf][loanId];
         require(loan.status == Types.Status.Active, "LoanManager/loan-not-active");
 
         address dTokenAddress = IERC7540Vault(vault).getDToken();
@@ -117,7 +108,7 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
             // Full or excess payment - reset monthly payment and advance next payment date
             loan.remainingMonthlyPayment = 0;
             loan.nextPaymentDate = uint40(
-                loan.nextPaymentDate + calculateDaysToNextPayment(loan.nextPaymentDate) * 1 days
+                loan.nextPaymentDate + _calculateDaysToNextPayment(loan.nextPaymentDate) * 1 days
             );
             loan.currentPaymentIndex++;
         } else {
@@ -126,11 +117,11 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
         }
 
         // 4. Handle Aave repayment amount calculation
-        uint256 aavePaymentAmount = calculateAaveRepaymentAmount(
+        aavePaymentAmount = _calculateAaveRepaymentAmount(
             principalPortion,
             balanceIncrease,
             loan.aaveBalance
-        );
+        ); 
     
         // 5. Update loan tracking data
         loan.aaveBalance = loan.aaveBalance + balanceIncrease - aavePaymentAmount;
@@ -144,12 +135,8 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
         
         // Return values needed by the vault
         remainingInterest = totalInterestDue - interestPortion;
-        return (principalPortion, interestPortion, remainingInterest);
+        return (loan, principalPortion, interestPortion, remainingInterest, aavePaymentAmount);
         
-    }
-
-    function getLoan(address borrower, uint256 loanId) external view returns (Types.Loan memory) {
-        return loans[borrower][loanId];
     }
 
     /**
@@ -157,7 +144,7 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
     * @param nextPaymentDate The current next payment date timestamp
     * @return days The number of days until next payment
     */
-    function calculateDaysToNextPayment(uint40 nextPaymentDate) internal view returns (uint256) {
+    function _calculateDaysToNextPayment(uint40 nextPaymentDate) internal view returns (uint256) {
         // If payment date is in the past, use standard 30 days
         if (nextPaymentDate <= block.timestamp) {
             return 30;
@@ -171,7 +158,7 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
         uint8[12] memory daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
         
         // Adjust February for leap years
-        if (currentMonth == 1 && isLeapYear(currentYear)) {
+        if (currentMonth == 1 && _isLeapYear(currentYear)) {
             daysInMonth[1] = 29;
         }
         
@@ -183,7 +170,7 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
     * @param year The year to check
     * @return True if leap year
     */
-    function isLeapYear(uint256 year) internal pure returns (bool) {
+    function _isLeapYear(uint256 year) internal pure returns (bool) {
         return (year % 4 == 0) && ((year % 100 != 0) || (year % 400 == 0));
     }
 
@@ -194,7 +181,7 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
     * @param currentAaveBalance Current balance owed to Aave
     * @return The amount to repay to Aave
     */
-    function calculateAaveRepaymentAmount(
+    function _calculateAaveRepaymentAmount(
         uint256 principalPortion,
         uint256 balanceIncrease,
         uint256 currentAaveBalance
