@@ -225,7 +225,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         address caller,
         address onBehalfOf,
         uint256 loanId
-    ) external onlyPoolManager returns (uint256 remainingInterest, uint256 interestRate) {
+    ) external onlyPoolManager returns (uint256 interestPaid, uint256 interestRate) {
         Types.Loan storage loan = loans[onBehalfOf][loanId];
         address aavePool = IPoolManager(poolManager).getPool(poolId).aavePool;
         uint256 remainingBalance = IDToken(dToken).balanceOf(onBehalfOf);
@@ -234,9 +234,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
 
         (
             Types.Loan memory updatedLoan, 
-            uint256 principal, 
-            uint256 interest,
-            uint256 remainingInterestBalance,
+            uint256 principalPortion, 
+            uint256 interestPortion,,
             uint256 aavePaymentAmount
         ) = ILoanManager(loanManager).processRepayment(
                 loan,
@@ -250,10 +249,13 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         IERC20(asset()).transferFrom(caller, address(this), assets);
         IERC20(asset()).approve(aavePool, aavePaymentAmount);
         IPool(aavePool).repay(asset(), aavePaymentAmount, 2, address(this));
-        IDToken(dToken).burn(onBehalfOf, principal);
+        IDToken(dToken).burn(onBehalfOf, principalPortion);
+        
+        IERC20(asset()).approve(aavePool, interestPortion);
+        IPool(aavePool).supply(asset(), interestPortion, address(this), 0);
 
-        emit LoanRepaid(loanId, onBehalfOf, principal, interest);
-        return (remainingInterestBalance, loan.interestRate);
+        emit LoanRepaid(loanId, onBehalfOf, principalPortion, interestPortion);
+        return (interestPortion, loan.interestRate);
     }
 
     function pendingRedeemRequest(uint256, address controller) external view returns (uint256) {

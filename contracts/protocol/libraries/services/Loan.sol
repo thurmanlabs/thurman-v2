@@ -46,10 +46,10 @@ library Loan {
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());
         uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
-        (uint256 remainingInterest, uint256 interestRate) = vault.repay(assets, msg.sender, onBehalfOf, loanId);
+        (uint256 interestPaid,) = vault.repay(assets, msg.sender, onBehalfOf, loanId);
         uint256 aaveCollateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
         pool.ltvRatio = aaveCollateralBalance == 0 ? 0 : aaveBorrowBalance.rayDiv(aaveCollateralBalance);
-        uint256 accruedToTreasury = remainingInterest.rayMul(pool.marginFee.rayDiv(interestRate));
+        uint256 accruedToTreasury = interestPaid.rayMul(pool.marginFee);
         pool.accruedToTreasury += accruedToTreasury;
         if (accruedToTreasury > 0) {
             IPool(pool.aavePool).supply(vault.asset(), accruedToTreasury, pool.vault, 0);
