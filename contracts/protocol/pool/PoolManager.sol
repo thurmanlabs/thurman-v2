@@ -28,6 +28,7 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
     function addPool(
         address vault,
         address aavePool,
+        address originatorRegistry,
         uint256 collateralCushion,
         uint256 ltvRatioCap,
         uint256 liquidityPremiumRate,
@@ -37,6 +38,7 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
                 _pools, 
                 vault, 
                 aavePool, 
+                originatorRegistry,
                 collateralCushion, 
                 ltvRatioCap, 
                 liquidityPremiumRate,

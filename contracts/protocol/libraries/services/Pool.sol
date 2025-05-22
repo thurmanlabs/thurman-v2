@@ -20,6 +20,7 @@ library Pool {
         mapping(uint16 => Types.Pool) storage pools,
         address vault,
         address aavePool,
+        address originatorRegistry,
         uint256 collateralCushion,
         uint256 ltvRatioCap,
         uint256 liquidityPremiumRate,
@@ -28,6 +29,7 @@ library Pool {
     ) internal returns (bool) {
         pools[poolCount].vault = vault;
         pools[poolCount].aavePool = aavePool;
+        pools[poolCount].originatorRegistry = originatorRegistry;
         pools[poolCount].config.collateralCushion = collateralCushion;
         pools[poolCount].config.ltvRatioCap = ltvRatioCap;
         pools[poolCount].config.liquidityPremiumRate = liquidityPremiumRate;

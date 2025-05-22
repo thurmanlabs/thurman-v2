@@ -128,6 +128,8 @@ library Types {
         address vault;
         /// @dev The address of the aave pool
         address aavePool;
+        /// @dev The address of the originator registry
+        address originatorRegistry;
         /// @dev The ltv ratio of Thurman's aave collateral and borrows
         uint256 ltvRatio;
         /// @dev The amount guaranteed by the pool
