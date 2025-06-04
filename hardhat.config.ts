@@ -1,21 +1,19 @@
-import "@nomicfoundation/hardhat-toolbox";
+import dotenv from 'dotenv';
 import { HardhatUserConfig } from "hardhat/config";
-import "@openzeppelin/hardhat-upgrades";
-import "@nomicfoundation/hardhat-chai-matchers";
-import "solidity-coverage";
-import "hardhat-deploy";
-import "hardhat-gas-reporter"
-import "dotenv/config";
+import "@nomicfoundation/hardhat-toolbox";
+
+dotenv.config();
 
 const POLYGON_MAINNET_RPC_URL = process.env.POLYGON_MAINNET_RPC_URL || "";
 const POLYGON_AMOY_RPC_URL = process.env.POLYGON_AMOY_RPC_URL || "";
-const MAINNET_PRIVATE_KEY = process.env.MAINNET_PRIVATE_KEY || "";
-const PRIVATE_KEY = process.env.PRIVATE_KEY || "0x";
 const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY || "";
+const MAINNET_PRIVATE_KEY = process.env.MAINNET_PRIVATE_KEY || "";
+const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
+const REPORT_GAS = process.env.REPORT_GAS !== undefined;
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.24",
+    version: "0.8.28",
     settings: {
       optimizer: {
         enabled: true,
@@ -46,7 +44,7 @@ const config: HardhatUserConfig = {
     },
   },
   gasReporter: {
-    enabled: process.env.REPORT_GAS !== undefined,
+    enabled: REPORT_GAS,
     currency: "USD",
     outputFile: "gas-report.txt",
     noColors: true,
@@ -56,15 +54,7 @@ const config: HardhatUserConfig = {
       polygon: POLYGONSCAN_API_KEY,
       polygonAmoy: POLYGONSCAN_API_KEY,
     },
-  },
-  namedAccounts: {
-    deployer: {
-      default: 0,
-    },
-  },
-  mocha: {
-    timeout: 200000, // 200 seconds max for running tests
-  },
+  }
 };
 
 export default config;
