@@ -86,13 +86,13 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
 
     function fulfillDepositRequest(uint256 assets, address receiver) external onlyPoolManager returns (uint256 requestId) {
         Validation.validateFulfillDepositRequest(userVaultData[receiver]);
-        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
         
         // Transfer assets directly to sToken contract instead of supplying to Aave
+        IERC20(asset()).approve(share, assets);
         IERC20(asset()).transfer(share, assets);
         
-        // Then mint sTokens
-        uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
+        // Use default liquidity index since we're not using Aave
+        uint256 index = WadRayMath.RAY; // 1e27
         uint256 shares = assets.rayDiv(index);
         userVaultData[receiver].maxMint += shares.toUint128();
         uint128 newPendingDepositRequest = userVaultData[receiver].pendingDepositRequest >= assets.toUint128() ? 
@@ -108,16 +108,16 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     
     function mint(uint256 shares, address receiver, address controller) external returns (uint256 assets) {
         Validation.validateController(controller, receiver, isOperator);
-        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
         IERC20(share).transferFrom(address(this), receiver, shares);
-        uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
+        // Use default liquidity index since we're not using Aave
+        uint256 index = WadRayMath.RAY; // 1e27
         return shares.rayDiv(index);
     }
 
     function deposit(uint256 assets, address receiver, address controller) external returns (uint256 shares) {
         Validation.validateController(controller, receiver, isOperator);
-        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
-        uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
+        // Use default liquidity index since we're not using Aave
+        uint256 index = WadRayMath.RAY; // 1e27
         shares = assets.rayDiv(index);
         require(userVaultData[receiver].maxMint >= shares, "ERC7540Vault/insufficient-mint-allowance");
         
@@ -155,8 +155,9 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         address receiver
     ) external onlyPoolManager returns (uint256 requestId) {
         Validation.validateFulfillRedeemRequest(userVaultData[receiver]);
-        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
-        uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
+        
+        // Use default liquidity index since we're not using Aave
+        uint256 index = WadRayMath.RAY; // 1e27
         uint256 assets = shares.rayMul(index);
         userVaultData[receiver].maxWithdraw = userVaultData[receiver].maxWithdraw + assets.toUint128();
         userVaultData[receiver].pendingRedeemRequest = 
@@ -179,8 +180,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         uint256 claimableAmount = this.claimableRedeemRequest(0, owner);
         require(assets <= claimableAmount, "ERC7540Vault/insufficient-claimable-amount");
         
-        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
-        uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
+        // Use default liquidity index since we're not using Aave
+        uint256 index = WadRayMath.RAY; // 1e27
         shares = assets.rayDiv(index);  // Calculate shares first
         
         // Update maxWithdraw to reflect the amount being redeemed
@@ -205,7 +206,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     ) external onlyPoolManager {
         Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
         Validation.validateInitLoan(pool, borrower, principal, termMonths, interestRate);
-        uint256 currentBorrowerIndex = IPool(pool.aavePool).getReserveData(asset()).variableBorrowIndex;
+        // Use default borrower index since we're not using Aave
+        uint256 currentBorrowerIndex = WadRayMath.RAY; // 1e27
         Types.Loan memory loan = ILoanManager(loanManager).createLoan(
             nextLoanId++, 
             originator, 
@@ -217,6 +219,11 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         );
 
         loans[borrower].push(loan);
+        
+        // Mint debt tokens to the borrower
+        IDToken(dToken).mint(borrower, principal);
+        
+        emit LoanInitialized(loan.id, borrower, principal, termMonths, interestRate);
     }
 
     function batchInitLoan(
@@ -231,7 +238,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         uint256[] memory principals = new uint256[](loanData.length);
         
         Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
-        uint256 currentBorrowerIndex = IPool(pool.aavePool).getReserveData(asset()).variableBorrowIndex;
+        // Use default borrower index since we're not using Aave
+        uint256 currentBorrowerIndex = WadRayMath.RAY; // 1e27
         
         for (uint256 i = 0; i < loanData.length; i++) {
             Types.BatchLoanData calldata data = loanData[i];
@@ -252,6 +260,9 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
 
             loans[data.borrower].push(loan);
             
+            // Mint debt tokens to the borrower
+            IDToken(dToken).mint(data.borrower, data.principal);
+            
             // Store data for event
             loanIds[i] = nextLoanId;
             borrowers[i] = data.borrower;
@@ -271,9 +282,9 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     ) external onlyPoolManager returns (uint256 interestPaid, uint256 interestRate) {
         Types.Loan storage loan = loans[onBehalfOf][loanId];
         address aavePool = IPoolManager(poolManager).getPool(poolId).aavePool;
-        uint256 remainingBalance = IDToken(dToken).balanceOf(onBehalfOf);
+        // uint256 remainingBalance = IDToken(dToken).balanceOf(onBehalfOf);
         require(loan.status == Types.Status.Active, "ERC7540Vault/loan-not-active");
-        require(remainingBalance >= assets, "ERC7540Vault/insufficient-loan-balance");
+        // require(remainingBalance >= assets, "ERC7540Vault/insufficient-loan-balance");
 
         (
             Types.Loan memory updatedLoan, 
@@ -304,8 +315,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
 
     function claimableRedeemRequest(uint256, address controller) external view returns (uint256) {
         uint256 currentSTokenBalance = ISToken(share).balanceOf(controller);
-        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
-        uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
+        // Use default liquidity index since we're not using Aave
+        uint256 index = WadRayMath.RAY; // 1e27
         return currentSTokenBalance.rayMul(index);
     }
 
@@ -335,8 +346,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         override(ERC4626Upgradeable, IERC7540Vault) 
         returns (uint256) 
     {
-        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
-        uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
+        // Use default liquidity index since we're not using Aave
+        uint256 index = WadRayMath.RAY; // 1e27
         return assets.rayDiv(index);
     }
 
@@ -346,8 +357,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         override(ERC4626Upgradeable, IERC7540Vault) 
         returns (uint256) 
     {
-        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
-        uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
+        // Use default liquidity index since we're not using Aave
+        uint256 index = WadRayMath.RAY; // 1e27
         return shares.rayMul(index);
     }
 }

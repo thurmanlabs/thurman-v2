@@ -37,13 +37,25 @@ describe("PoolManager Deposit", () => {
         snapshotId = await network.provider.send("evm_snapshot");
 
         // Setup initial state for each test
-        const { deployer, users, usdc } = testEnv;
+        const { deployer, users, usdc, poolManager } = testEnv;
         const amount = ethers.parseUnits("100", 6);
         await usdc.connect(whaleSigner).transfer(deployer.address, amount);
 
         for (let i = 0; i < users.length; i++) {
             await usdc.connect(whaleSigner).transfer(users[i].address, amount);
         }
+
+        // Enable pool operations for testing
+        await poolManager.connect(deployer).setPoolOperationalSettings(
+            0, // poolId
+            true,  // depositsEnabled
+            true,  // withdrawalsEnabled
+            false, // borrowingEnabled
+            false, // isPaused
+            ethers.parseUnits("1000000", 6), // maxDepositAmount
+            ethers.parseUnits("1", 6),       // minDepositAmount
+            ethers.parseUnits("10000000", 6) // depositCap
+        );
     });
 
     afterEach(async () => {
@@ -108,7 +120,7 @@ describe("PoolManager Deposit", () => {
             const shares = await vault.convertToShares(amount);
             await sUSDC.connect(users[userIndex]).approve(vault.target.toString(), shares);
             expect(await poolManager.connect(users[userIndex])
-                .requestRedeem(poolId, shares, users[userIndex].address, users[userIndex].address))
+                .requestRedeem(poolId, amount, users[userIndex].address, users[userIndex].address))
                 .to.emit(vault, "RedeemRequest");
         });
 

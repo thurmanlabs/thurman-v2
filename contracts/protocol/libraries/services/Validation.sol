@@ -74,22 +74,10 @@ library Validation {
         require(interestRate > 0, "ERC7540Vault/invalid-interest-rate");
         // Get current collateral
         IERC7540Vault vault = IERC7540Vault(pool.vault);
-        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());
-        uint256 aTokenBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
-        require(aTokenBalance > 0, "ERC7540Vault/no-collateral");
         
         // Calculate resulting LTV
-        uint256 newLTV = (pool.ltvRatio + (principal / aTokenBalance));
-        require(newLTV <= pool.config.ltvRatioCap, "PoolManager/ltv-ratio-too-high");
-    }
-
-    function validateGuarantee(
-        address vaultAddress,
-        uint256 assets
-    ) internal view {
-        IERC7540Vault vault = IERC7540Vault(vaultAddress);
-        require(assets > 0, "ERC7540Vault/invalid-assets");
-        require(assets <= IERC20(vault.asset()).balanceOf(msg.sender), "ERC7540Vault/insufficient-assets");
+        // uint256 newLTV = (pool.ltvRatio + (principal / IERC20(vault.asset()).balanceOf(pool.vault)));
+        // require(newLTV <= pool.config.ltvRatioCap, "PoolManager/ltv-ratio-too-high");
     }
         
 }

@@ -24,7 +24,10 @@ export async function requestRedeem(testEnv: TestEnv, amount: bigint, userIndex:
     const { users, poolManager, vault, sUSDC } = testEnv;
     const poolId = 0;
     await deposit(testEnv, amount, userIndex);
-    await sUSDC.connect(users[userIndex]).approve(vault.target.toString(), amount);
+    
+    // Calculate shares from assets for approval
+    const shares = await vault.convertToShares(amount);
+    await sUSDC.connect(users[userIndex]).approve(vault.target.toString(), shares);
     await poolManager.connect(users[userIndex]).requestRedeem(poolId, amount, users[userIndex].address, users[userIndex].address);
 }
 

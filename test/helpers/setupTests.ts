@@ -2,7 +2,7 @@ import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { ethers, upgrades } from "hardhat";
 import { ContractFactory } from "ethers";
 import { IPool } from "../../typechain-types";
-import { PoolManager, ERC7540Vault, SToken, DToken } from "../../typechain-types";
+import { PoolManager, ERC7540Vault, SToken, DToken, OriginatorRegistry, LoanManager } from "../../typechain-types";
 import { getAddresses } from "../../config/addresses";
 import { IERC20 } from "../../typechain-types";
 
@@ -13,6 +13,8 @@ export interface TestEnv {
     vault: ERC7540Vault;
     sUSDC: SToken;
     dUSDC: DToken;
+    originatorRegistry: OriginatorRegistry;
+    loanManager: LoanManager;
     usdc: IERC20;
     aUSDC: IERC20;
     aavePool: IPool;
@@ -23,7 +25,9 @@ export const testEnv: TestEnv = {
     users: [] as HardhatEthersSigner[],
     poolManager: {} as PoolManager,
     vault: {} as ERC7540Vault,
-    sUSDC: {} as SToken
+    sUSDC: {} as SToken,
+    originatorRegistry: {} as OriginatorRegistry,
+    loanManager: {} as LoanManager
 } as TestEnv;
 
 export async function setupTestEnv(): Promise<TestEnv> {
@@ -66,13 +70,38 @@ export async function setupTestEnv(): Promise<TestEnv> {
     await dUSDC.waitForDeployment();
     testEnv.dUSDC = dUSDC as unknown as DToken;
 
+    const OriginatorRegistryFactory = await ethers.getContractFactory("OriginatorRegistry");
+    const originatorRegistry = await upgrades.deployProxy(OriginatorRegistryFactory as unknown as ContractFactory, 
+        [
+            deployer.address,
+            addresses.tokens.USDC // paymentAsset
+        ],
+        {
+            initializer: "initialize"
+        }
+    );
+    await originatorRegistry.waitForDeployment();
+    testEnv.originatorRegistry = originatorRegistry as unknown as OriginatorRegistry;
+
+    // Grant ACCRUER_ROLE to pool manager
+    await (originatorRegistry as unknown as OriginatorRegistry).connect(deployer).grantRole(
+        await (originatorRegistry as unknown as OriginatorRegistry).ACCRUER_ROLE(),
+        poolManager.target
+    );
+
+    const LoanManagerFactory = await ethers.getContractFactory("LoanManager");
+    const loanManager = await upgrades.deployProxy(LoanManagerFactory as unknown as ContractFactory, []);
+    await loanManager.waitForDeployment();
+    testEnv.loanManager = loanManager as unknown as LoanManager;
+
     const VaultFactory = await ethers.getContractFactory("ERC7540Vault");
     const vault = await upgrades.deployProxy(VaultFactory as unknown as ContractFactory, 
         [
             addresses.tokens.USDC,
             sUSDC.target,
             dUSDC.target,
-            poolManager.target
+            poolManager.target,
+            loanManager.target
         ]
     );
     await vault.waitForDeployment();
@@ -83,13 +112,13 @@ export async function setupTestEnv(): Promise<TestEnv> {
     testEnv.aavePool = await ethers.getContractAt("IPool", addresses.aave.pool);
     
     await testEnv.poolManager.addPool(
-        vault.getAddress(),
+        await vault.getAddress(),
         addresses.aave.pool,
-        ethers.parseEther("0.1"),
-        ethers.parseEther("0.9"),
-        ethers.parseEther("0.1"),
-        ethers.parseEther("0.02"),
-        ethers.parseEther("0.1"),
+        await originatorRegistry.getAddress(), // originatorRegistry
+        ethers.parseEther("0.1").toString(),
+        ethers.parseEther("0.9").toString(),
+        ethers.parseEther("0.1").toString(),
+        ethers.parseEther("0.02").toString()
     )
     
     return testEnv;

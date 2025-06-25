@@ -67,14 +67,28 @@ describe("PoolManager Borrow", () => {
             const poolId = 0;
             const amount = ethers.parseUnits("10.0", 6);
             const loanAmount = ethers.parseUnits("1.0", 6);
-            const projectedLossRate = ethers.parseEther("0.1"); // 10% projected loss
+            const interestRate = ethers.parseEther("0.06"); // 6% interest rate
+            const retentionRate = ethers.parseEther("0.1"); // 10% retention rate
+            const originator = deployer.address; // Use deployer as originator
+
+            // Enable borrowing for the pool
+            await poolManager.connect(deployer).setPoolOperationalSettings(
+                poolId,
+                true,  // depositsEnabled
+                true,  // withdrawalsEnabled
+                true,  // borrowingEnabled
+                false, // isPaused
+                ethers.parseUnits("1000000", 6), // maxDepositAmount
+                ethers.parseUnits("1", 6),       // minDepositAmount
+                ethers.parseUnits("10000000", 6) // depositCap
+            );
 
             await deposit(testEnv, amount, userIndex);
 
             const pool = await poolManager.getPool(poolId);
             
             expect(await poolManager.connect(deployer)
-                .initLoan(poolId, users[borrowerIndex].address, loanAmount, 12, projectedLossRate))
+                .initLoan(poolId, users[borrowerIndex].address, originator, retentionRate, loanAmount, 12, interestRate))
                 .to.emit(vault, "LoanInitialized");
         });
 
@@ -86,23 +100,33 @@ describe("PoolManager Borrow", () => {
             const amount = ethers.parseUnits("10", 6);
             const loanAmount = ethers.parseUnits("1", 6);
             const interestRate = ethers.parseEther("0.06");
+            const retentionRate = ethers.parseEther("0.1"); // 10% retention rate
+            const originator = deployer.address; // Use deployer as originator
 
-            vault.on("LoanInitialized", async (loanId: number, borrower: string, principal: number, termMonths: number, interestRate: number) => {
-                console.log("Loan initialized: ", loanId, borrower, principal, termMonths, interestRate);
-            });
-            
+            // Enable borrowing for the pool
+            await poolManager.connect(deployer).setPoolOperationalSettings(
+                poolId,
+                true,  // depositsEnabled
+                true,  // withdrawalsEnabled
+                true,  // borrowingEnabled
+                false, // isPaused
+                ethers.parseUnits("1000000", 6), // maxDepositAmount
+                ethers.parseUnits("1", 6),       // minDepositAmount
+                ethers.parseUnits("10000000", 6) // depositCap
+            );
+
             // Setup initial balances
             await deposit(testEnv, amount, userIndex);
             
             // Give borrower some USDC for repayment
-            // await usdc.connect(whaleSigner).transfer(
-            //     users[borrowerIndex].address, 
-            //     ethers.parseUnits("1", 6)
-            // ); 
+            await usdc.connect(whaleSigner).transfer(
+                users[borrowerIndex].address, 
+                ethers.parseUnits("1", 6)
+            ); 
             
             // Initialize loan
             await poolManager.connect(deployer)
-                .initLoan(poolId, users[borrowerIndex].address, loanAmount, 12, interestRate);
+                .initLoan(poolId, users[borrowerIndex].address, originator, retentionRate, loanAmount, 12, interestRate);
             
             const repayAmount = ethers.parseUnits("0.1", 6);
             

@@ -99,8 +99,10 @@ contract SToken is ISToken, ERC20Upgradeable {
         emit Burn(from, receiverOfUnderlying, amountToBurn, balanceIncrease, index);
     }
 
-    // Transfer underlying assets to receiver
-    IERC20(asset()).transfer(receiverOfUnderlying, amount);
+    // Transfer underlying assets from vault to receiver
+    Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+    IERC7540Vault vault = IERC7540Vault(pool.vault);
+    IERC20(asset()).transferFrom(address(vault), receiverOfUnderlying, amount);
   }
 
   function balanceOf(address user)
