@@ -25,6 +25,12 @@ library Loan {
         uint16 termMonths,
         uint256 interestRate
     ) internal {
+        Types.PoolConfig memory config = pools[poolId].config;
+        
+        // Validation block for operational controls
+        require(!config.isPaused, "Loan/pool-paused");
+        require(config.borrowingEnabled, "Loan/borrowing-disabled");
+        
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         Validation.validateInitLoan(pool, borrower, principal, termMonths, interestRate);

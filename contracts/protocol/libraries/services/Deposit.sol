@@ -29,8 +29,20 @@ library Deposit {
         address controller,
         address owner
     ) internal {
+        Types.PoolConfig memory config = pools[poolId].config;
+        
+        // Validation block for operational controls
+        require(!config.isPaused, "Deposit/pool-paused");
+        require(config.depositsEnabled, "Deposit/deposits-disabled");
+        require(assets >= config.minDepositAmount, "Deposit/amount-too-small");
+        require(assets <= config.maxDepositAmount, "Deposit/amount-too-large");
+        
+        // Deposit cap check
+        IERC7540Vault vault = IERC7540Vault(pools[poolId].vault);
+        uint256 currentAssets = vault.totalAssets();
+        require(currentAssets + assets <= config.depositCap, "Deposit/cap-exceeded");
+        
         Types.Pool storage pool = pools[poolId];
-        IERC7540Vault vault = IERC7540Vault(pool.vault);
         vault.requestDeposit(assets, controller, owner);
     }
 
@@ -40,6 +52,12 @@ library Deposit {
         uint256 assets,
         address receiver
     ) internal {
+        Types.PoolConfig memory config = pools[poolId].config;
+        
+        // Validation block for operational controls
+        require(!config.isPaused, "Deposit/pool-paused");
+        require(config.depositsEnabled, "Deposit/deposits-disabled");
+        
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         vault.fulfillDepositRequest(assets, receiver);
@@ -57,6 +75,12 @@ library Deposit {
         uint256 assets,
         address owner
     ) internal {
+        Types.PoolConfig memory config = pools[poolId].config;
+        
+        // Validation block for operational controls
+        require(!config.isPaused, "Deposit/pool-paused");
+        require(config.depositsEnabled, "Deposit/deposits-disabled");
+        
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         vault.deposit(assets, owner, owner);
@@ -69,6 +93,12 @@ library Deposit {
         address controller,
         address owner
     ) internal {
+        Types.PoolConfig memory config = pools[poolId].config;
+        
+        // Validation block for operational controls
+        require(!config.isPaused, "Redeem/pool-paused");
+        require(config.withdrawalsEnabled, "Redeem/withdrawals-disabled");
+        
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         uint256 shares = vault.convertToShares(assets);
@@ -81,6 +111,12 @@ library Deposit {
         uint256 assets,
         address receiver
     ) internal {
+        Types.PoolConfig memory config = pools[poolId].config;
+        
+        // Validation block for operational controls
+        require(!config.isPaused, "Redeem/pool-paused");
+        require(config.withdrawalsEnabled, "Redeem/withdrawals-disabled");
+        
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         uint256 shares = vault.convertToShares(assets);
@@ -97,6 +133,12 @@ library Deposit {
         uint256 assets,
         address receiver
     ) internal {
+        Types.PoolConfig memory config = pools[poolId].config;
+        
+        // Validation block for operational controls
+        require(!config.isPaused, "Redeem/pool-paused");
+        require(config.withdrawalsEnabled, "Redeem/withdrawals-disabled");
+        
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         vault.redeem(assets, msg.sender, receiver);

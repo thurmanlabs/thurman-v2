@@ -49,6 +49,30 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         }
     }
 
+    function setPoolOperationalSettings(
+        uint16 poolId,
+        bool depositsEnabled,
+        bool withdrawalsEnabled,
+        bool borrowingEnabled,
+        bool isPaused,
+        uint256 maxDepositAmount,
+        uint256 minDepositAmount,
+        uint256 depositCap
+    ) external onlyOwner {
+        require(poolId < _poolCount, "PoolManager/invalid-pool-id");
+        
+        Types.PoolConfig storage config = _pools[poolId].config;
+        config.depositsEnabled = depositsEnabled;
+        config.withdrawalsEnabled = withdrawalsEnabled;
+        config.borrowingEnabled = borrowingEnabled;
+        config.isPaused = isPaused;
+        config.maxDepositAmount = maxDepositAmount;
+        config.minDepositAmount = minDepositAmount;
+        config.depositCap = depositCap;
+        
+        emit PoolConfigurationUpdated(poolId);
+    }
+
     function setOperator(uint16 poolId, address operator, bool approved) external {
         Deposit.setOperator(_pools, poolId, operator, approved);
     }
@@ -125,6 +149,32 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
 
     function isOwner(address _address) external view returns (bool) {
         return _address == owner();
+    }
+
+    function getPoolConfiguration(uint16 poolId) external view returns (Types.PoolConfig memory) {
+        require(poolId < _poolCount, "PoolManager/invalid-pool-id");
+        return _pools[poolId].config;
+    }
+
+    function isPoolOperationAllowed(uint16 poolId, string calldata operation) external view returns (bool) {
+        require(poolId < _poolCount, "PoolManager/invalid-pool-id");
+        Types.PoolConfig memory config = _pools[poolId].config;
+        
+        // Check if pool is paused first
+        if (config.isPaused) {
+            return false;
+        }
+        
+        // Check operation-specific enablement
+        if (keccak256(bytes(operation)) == keccak256(bytes("deposit"))) {
+            return config.depositsEnabled;
+        } else if (keccak256(bytes(operation)) == keccak256(bytes("withdraw"))) {
+            return config.withdrawalsEnabled;
+        } else if (keccak256(bytes(operation)) == keccak256(bytes("borrow"))) {
+            return config.borrowingEnabled;
+        }
+        
+        return false; // Unknown operation
     }
 
 }

@@ -6,6 +6,7 @@ import {Types} from "../protocol/libraries/types/Types.sol";
 interface IPoolManager {
     event PoolAdded(uint16 indexed poolId, address indexed vault, address indexed underlyingAsset);
     event MintedToTreasury(uint16 indexed poolId, uint256 amountMinted);
+    event PoolConfigurationUpdated(uint16 indexed poolId);
     
     /**
      * @dev Sets the operator for the pool manager
@@ -132,6 +133,28 @@ interface IPoolManager {
     ) external;
 
     /**
+     * @dev Sets operational settings for a pool
+     * @param poolId The ID of the pool to configure
+     * @param depositsEnabled Whether deposits are enabled
+     * @param withdrawalsEnabled Whether withdrawals are enabled
+     * @param borrowingEnabled Whether borrowing is enabled
+     * @param isPaused Whether the pool is paused
+     * @param maxDepositAmount Maximum single deposit amount
+     * @param minDepositAmount Minimum single deposit amount
+     * @param depositCap Total pool deposit cap
+     */
+    function setPoolOperationalSettings(
+        uint16 poolId,
+        bool depositsEnabled,
+        bool withdrawalsEnabled,
+        bool borrowingEnabled,
+        bool isPaused,
+        uint256 maxDepositAmount,
+        uint256 minDepositAmount,
+        uint256 depositCap
+    ) external;
+
+    /**
      * @dev Mints sTokens to the treasury
      * @param poolId The ID of the pool to mint to
      * @param amount The amount of sTokens to mint
@@ -164,4 +187,19 @@ interface IPoolManager {
      * @return normalizedReturn The normalized return for the pool
      */
     function getNormalizedReturn(uint16 poolId) external view returns (uint256);
+
+    /**
+     * @dev Returns the complete configuration for a given pool
+     * @param poolId The ID of the pool to get the configuration for
+     * @return config The complete pool configuration
+     */
+    function getPoolConfiguration(uint16 poolId) external view returns (Types.PoolConfig memory);
+
+    /**
+     * @dev Checks if a specific operation is allowed for a given pool
+     * @param poolId The ID of the pool to check
+     * @param operation The operation to check ("deposit", "withdraw", or "borrow")
+     * @return allowed True if the operation is allowed (not paused and operation enabled)
+     */
+    function isPoolOperationAllowed(uint16 poolId, string calldata operation) external view returns (bool);
 }

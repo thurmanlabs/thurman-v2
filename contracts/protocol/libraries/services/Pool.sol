@@ -34,6 +34,16 @@ library Pool {
         pools[poolCount].config.ltvRatioCap = ltvRatioCap;
         pools[poolCount].config.liquidityPremiumRate = liquidityPremiumRate;
         pools[poolCount].config.marginFee = marginFee;
+        
+        // Initialize new operational control fields with default values
+        pools[poolCount].config.depositsEnabled = false;
+        pools[poolCount].config.withdrawalsEnabled = false;
+        pools[poolCount].config.borrowingEnabled = false;
+        pools[poolCount].config.isPaused = false;
+        pools[poolCount].config.maxDepositAmount = type(uint256).max;
+        pools[poolCount].config.minDepositAmount = 0;
+        pools[poolCount].config.depositCap = type(uint256).max;
+        
         pools[poolCount].liquidityPremiumIndex = WadRayMath.RAY;
         pools[poolCount].lastUpdateTimestamp = uint40(block.timestamp);
 

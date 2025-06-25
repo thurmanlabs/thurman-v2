@@ -151,6 +151,20 @@ library Types {
         uint256 marginFee;
         /// @dev The liquidity premium rate
         uint256 liquidityPremiumRate;
+        /// @dev Toggle deposit operations
+        bool depositsEnabled;
+        /// @dev Toggle withdrawal operations
+        bool withdrawalsEnabled;
+        /// @dev Toggle loan initiation
+        bool borrowingEnabled;
+        /// @dev Emergency pause all operations
+        bool isPaused;
+        /// @dev Maximum single deposit limit
+        uint256 maxDepositAmount;
+        /// @dev Minimum single deposit limit
+        uint256 minDepositAmount;
+        /// @dev Total pool size limit
+        uint256 depositCap;
     }
 
     struct MonthlyPaymentVars {
