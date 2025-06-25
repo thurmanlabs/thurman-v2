@@ -64,6 +64,13 @@ interface IERC7540Vault is IERC4626 {
         uint256 assets
     );
 
+    event BatchLoanInitialized(
+        address indexed originator,
+        uint256[] loanIds,
+        address[] borrowers,
+        uint256[] principals
+    );
+
     /**
      * @dev Sets or removes an operator for the caller.
      *
@@ -240,6 +247,17 @@ interface IERC7540Vault is IERC4626 {
         uint256 principal, 
         uint16 termMonths,
         uint256 interestRate
+    ) external;
+
+    /**
+     * @dev Initializes multiple loans for different borrowers in a single transaction.
+     *
+     * @param loanData array of loan data containing borrower, retentionRate, principal, termMonths, and interestRate
+     * @param originator the address of the originator for all loans
+     */
+    function batchInitLoan(
+        Types.BatchLoanData[] calldata loanData,
+        address originator
     ) external;
 
     /**

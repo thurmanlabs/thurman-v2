@@ -132,8 +132,6 @@ library Types {
         address originatorRegistry;
         /// @dev The ltv ratio of Thurman's aave collateral and borrows
         uint256 ltvRatio;
-        /// @dev The amount guaranteed by the pool
-        uint256 amountGuaranteed;
         /// @dev The accrued to treasury
         uint256 accruedToTreasury;
         /// @dev The margin fee accrued to treasury
@@ -160,5 +158,14 @@ library Types {
         uint256 rateFactor;
         uint256 rateFactorPower;
         uint256 principalRay;
+    }
+
+    // Batch loan initialization struct
+    struct BatchLoanData {
+        address borrower;
+        uint256 retentionRate;
+        uint256 principal;
+        uint16 termMonths;
+        uint256 interestRate;
     }
 }

@@ -217,11 +217,50 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         );
 
         loans[borrower].push(loan);
+    }
 
-        IERC20(asset()).approve(pool.aavePool, principal);
-        IPool(pool.aavePool).borrow(asset(), principal, 2, 0, address(this));
-        IDToken(dToken).mint(borrower, principal);
-        IERC20(asset()).transfer(borrower, principal);
+    function batchInitLoan(
+        Types.BatchLoanData[] calldata loanData,
+        address originator
+    ) external onlyPoolManager {
+        require(loanData.length > 0, "ERC7540Vault/empty-batch");
+        require(loanData.length <= 100, "ERC7540Vault/batch-too-large"); // Prevent gas limit issues
+        
+        uint256[] memory loanIds = new uint256[](loanData.length);
+        address[] memory borrowers = new address[](loanData.length);
+        uint256[] memory principals = new uint256[](loanData.length);
+        
+        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+        uint256 currentBorrowerIndex = IPool(pool.aavePool).getReserveData(asset()).variableBorrowIndex;
+        
+        for (uint256 i = 0; i < loanData.length; i++) {
+            Types.BatchLoanData calldata data = loanData[i];
+            
+            // Validate loan data
+            Validation.validateInitLoan(pool, data.borrower, data.principal, data.termMonths, data.interestRate);
+            
+            // Create loan
+            Types.Loan memory loan = ILoanManager(loanManager).createLoan(
+                nextLoanId, 
+                originator, 
+                data.retentionRate, 
+                data.principal, 
+                data.termMonths, 
+                data.interestRate, 
+                uint176(currentBorrowerIndex)
+            );
+
+            loans[data.borrower].push(loan);
+            
+            // Store data for event
+            loanIds[i] = nextLoanId;
+            borrowers[i] = data.borrower;
+            principals[i] = data.principal;
+            
+            nextLoanId++;
+        }
+        
+        emit BatchLoanInitialized(originator, loanIds, borrowers, principals);
     }
 
     function repay(
@@ -251,12 +290,9 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         loans[onBehalfOf][loanId] = updatedLoan;
 
         IERC20(asset()).transferFrom(caller, address(this), assets);
-        IERC20(asset()).approve(aavePool, aavePaymentAmount);
-        IPool(aavePool).repay(asset(), aavePaymentAmount, 2, address(this));
+        // Transfer the entire payment to sToken instead of Aave operations
+        IERC20(asset()).transfer(share, assets);
         IDToken(dToken).burn(onBehalfOf, principalPortion);
-        
-        IERC20(asset()).approve(aavePool, interestPortion);
-        IPool(aavePool).supply(asset(), interestPortion, address(this), 0);
 
         emit LoanRepaid(loanId, onBehalfOf, principalPortion, interestPortion);
         return (interestPortion, loan.interestRate);
