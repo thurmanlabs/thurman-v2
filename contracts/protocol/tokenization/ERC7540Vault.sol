@@ -88,9 +88,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         Validation.validateFulfillDepositRequest(userVaultData[receiver]);
         Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
         
-        // Supply to Aave first
-        IERC20(asset()).approve(pool.aavePool, assets);
-        IPool(pool.aavePool).supply(asset(), assets, address(this), 0);
+        // Transfer assets directly to sToken contract instead of supplying to Aave
+        IERC20(asset()).transfer(share, assets);
         
         // Then mint sTokens
         uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
@@ -165,8 +164,6 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         
         if (userVaultData[receiver].pendingRedeemRequest == 0) delete userVaultData[receiver].pendingRedeemRequest;
 
-        ISToken sToken = ISToken(share);
-        sToken.burn(address(this), receiver, assets, index);
         emit RedeemClaimable(receiver, REQUEST_ID, assets, shares);
         return REQUEST_ID;
     }
@@ -177,15 +174,22 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         returns (uint256 shares)
     {
         Validation.validateController(controller, owner, isOperator);
-        Validation.validateRedeem(userVaultData[owner], shares);
+        
+        // Use claimableRedeemRequest for validation instead of stale maxWithdraw
+        uint256 claimableAmount = this.claimableRedeemRequest(0, owner);
+        require(assets <= claimableAmount, "ERC7540Vault/insufficient-claimable-amount");
+        
         Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
         uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
-        userVaultData[owner].maxWithdraw = 
-            userVaultData[owner].maxWithdraw > shares ? userVaultData[owner].maxWithdraw - shares.toUint128() : 0;
-        
         shares = assets.rayDiv(index);  // Calculate shares first
         
-        IPool(pool.aavePool).withdraw(asset(), assets, owner);
+        // Update maxWithdraw to reflect the amount being redeemed
+        userVaultData[owner].maxWithdraw = 
+            userVaultData[owner].maxWithdraw > assets ? userVaultData[owner].maxWithdraw - assets.toUint128() : 0;
+        
+        // Burn sTokens and transfer underlying assets to owner
+        ISToken sToken = ISToken(share);
+        sToken.burn(address(this), owner, assets, index);
         
         emit Withdraw(address(this), controller, owner, assets, shares);
         return shares;
@@ -263,7 +267,10 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     }
 
     function claimableRedeemRequest(uint256, address controller) external view returns (uint256) {
-        return userVaultData[controller].maxWithdraw;
+        uint256 currentSTokenBalance = ISToken(share).balanceOf(controller);
+        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+        uint256 index = IPool(pool.aavePool).getReserveData(asset()).liquidityIndex;
+        return currentSTokenBalance.rayMul(index);
     }
 
     function getShare() external view returns (address) {
