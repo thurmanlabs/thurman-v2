@@ -98,6 +98,19 @@ interface IPoolManager {
     ) external;
 
     /**
+     * @dev Initializes multiple loans for different borrowers in a single transaction.
+     *
+     * @param poolId the id of the pool to initialize the loans for
+     * @param loanData array of loan data containing borrower, retentionRate, principal, termMonths, and interestRate
+     * @param originator the address of the originator for all loans
+     */
+    function batchInitLoan(
+        uint16 poolId,
+        Types.BatchLoanData[] calldata loanData,
+        address originator
+    ) external;
+
+    /**
      * @dev Repays a loan for a given borrower.
      *
      * @param poolId the id of the pool to repay the loan for

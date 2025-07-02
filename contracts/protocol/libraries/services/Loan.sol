@@ -42,6 +42,44 @@ library Loan {
         pool.ltvRatio = aaveCollateralBalance == 0 ? 0 : aaveBorrowBalance.rayDiv(aaveCollateralBalance);
     }
 
+    function batchInitLoan(
+        mapping(uint16 => Types.Pool) storage pools,
+        uint16 poolId,
+        Types.BatchLoanData[] calldata loanData,
+        address originator
+    ) internal {
+        require(loanData.length > 0, "Loan/empty-batch");
+        require(loanData.length <= 100, "Loan/batch-too-large"); // Prevent gas limit issues
+        
+        Types.PoolConfig memory config = pools[poolId].config;
+        
+        // Validation block for operational controls
+        require(!config.isPaused, "Loan/pool-paused");
+        require(config.borrowingEnabled, "Loan/borrowing-disabled");
+        
+        Types.Pool storage pool = pools[poolId];
+        IERC7540Vault vault = IERC7540Vault(pool.vault);
+        
+        // Validate all loans before processing any
+        for (uint256 i = 0; i < loanData.length; i++) {
+            Types.BatchLoanData calldata data = loanData[i];
+            Validation.validateInitLoan(pool, data.borrower, data.principal, data.termMonths, data.interestRate);
+        }
+        
+        // Process all loans
+        for (uint256 i = 0; i < loanData.length; i++) {
+            Types.BatchLoanData calldata data = loanData[i];
+            vault.initLoan(data.borrower, originator, data.retentionRate, data.principal, data.termMonths, data.interestRate);
+        }
+        
+        // Update pool LTV ratio after all loans are processed
+        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());
+        uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
+        uint256 aaveCollateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
+        pool.ltvRatio = aaveCollateralBalance == 0 ? 0 : aaveBorrowBalance.rayDiv(aaveCollateralBalance);
+        pool.ltvRatio = aaveCollateralBalance == 0 ? 0 : aaveBorrowBalance.rayDiv(aaveCollateralBalance);
+    }
+
     function repayLoan(
         mapping(uint16 => Types.Pool) storage pools,
         uint16 poolId,

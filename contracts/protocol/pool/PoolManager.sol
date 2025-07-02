@@ -122,6 +122,19 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         );
     }
 
+    function batchInitLoan(
+        uint16 poolId,
+        Types.BatchLoanData[] calldata loanData,
+        address originator
+    ) external onlyOwner {
+        Loan.batchInitLoan(
+            _pools,
+            poolId,
+            loanData,
+            originator
+        );
+    }
+
     function repayLoan(
         uint16 poolId,
         uint256 assets,
