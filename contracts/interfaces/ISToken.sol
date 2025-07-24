@@ -50,4 +50,11 @@ interface ISToken is IERC20 {
    * @return The total claimable returns
    */
   function totalClaimableReturns(address user) external view returns (uint256);
+
+  /**
+   * @notice Returns the user baseline for a user
+   * @param user The address of the user
+   * @return The user baseline
+   */
+  function getUserBaseline(address user) external view returns (uint256);
 }

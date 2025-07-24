@@ -13,7 +13,6 @@ interface ILoanManager {
      * @param principal The principal amount of the loan.
      * @param termMonths The term of the loan in months.
      * @param interestRate The interest rate of the loan.
-     * @param currentBorrowerIndex The index of the current borrower.
      * @return loan The new loan.
      */
     function createLoan(
@@ -22,8 +21,7 @@ interface ILoanManager {
         uint256 retentionRate,
         uint256 principal,
         uint16 termMonths,
-        uint256 interestRate,
-        uint256 currentBorrowerIndex
+        uint256 interestRate
     ) external returns (Types.Loan memory loan);
 
     /**

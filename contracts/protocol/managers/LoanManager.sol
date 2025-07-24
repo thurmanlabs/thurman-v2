@@ -32,8 +32,7 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
         uint256 retentionRate,
         uint256 principal,
         uint16 termMonths,
-        uint256 interestRate,
-        uint256 currentBorrowerIndex
+        uint256 interestRate
     ) external view returns (Types.Loan memory loan) {
         uint256 payment = LoanMath.calculateMonthlyPayment(
             principal,
@@ -50,7 +49,6 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
             remainingMonthlyPayment: uint128(payment),
             currentPaymentIndex: 0,
             status: Types.Status.Active,
-            currentBorrowerIndex: uint176(currentBorrowerIndex),
             lastUpdateTimestamp: uint40(block.timestamp),
             originator: originator,
             retentionRate: retentionRate

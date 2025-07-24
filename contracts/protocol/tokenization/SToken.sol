@@ -99,7 +99,11 @@ contract SToken is ISToken, ERC20Upgradeable {
         uint256 userShares = super.balanceOf(user);
         Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
         return userShares.rayMul(pool.cumulativeDistributionsPerShare - userDistributionBaselines[user]);
-    }
+  }
+
+  function getUserBaseline(address user) public view returns (uint256) {
+    return userDistributionBaselines[user];
+  }
 
 //   function balanceOf(address user)
 //     public

@@ -91,10 +91,7 @@ library Types {
         // Slot 5: Timestamps and index (256 bits)
         uint40 nextPaymentDate;     // 40 bits
         uint40 lastUpdateTimestamp; // 40 bits
-        uint176 currentBorrowerIndex; // 176 bits
 
-        // Slot 6: Aave balance (256 bits)
-        // uint256 aaveBalance;        // Full slot
         /// @dev The address of the originator of the loan
         address originator;
         /// @dev The amount of interest retained by the originator

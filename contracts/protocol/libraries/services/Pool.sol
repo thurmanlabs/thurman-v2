@@ -15,6 +15,7 @@ library Pool {
 
     event PoolAdded(uint16 indexed poolId, address indexed vault, address indexed underlyingAsset);
     event MintedToTreasury(uint16 indexed poolId, uint256 amountMinted);
+    event PoolConfigurationUpdated(uint16 indexed poolId);
 
     function addPool(
         mapping(uint16 => Types.Pool) storage pools,
@@ -39,6 +40,35 @@ library Pool {
         IERC7540Vault _vault = IERC7540Vault(vault);
         emit PoolAdded(poolCount, vault, _vault.asset());
         return true;
+    }
+
+    /// @notice Sets the operational settings for a pool
+    /// @param pools The mapping of pool IDs to pool data
+    /// @param poolId The ID of the pool to update
+    /// @param depositsEnabled Whether deposits are enabled
+    /// @param withdrawalsEnabled Whether withdrawals are enabled
+    /// @param borrowingEnabled Whether borrowing is enabled
+    /// @param isPaused Whether the pool is paused
+    function setPoolOperationalSettings(
+        mapping(uint16 => Types.Pool) storage pools,
+        uint16 poolId,
+        bool depositsEnabled,
+        bool withdrawalsEnabled,
+        bool borrowingEnabled,
+        bool isPaused,
+        uint256 maxDepositAmount,
+        uint256 minDepositAmount,
+        uint256 depositCap
+    ) internal {
+        pools[poolId].config.depositsEnabled = depositsEnabled;
+        pools[poolId].config.withdrawalsEnabled = withdrawalsEnabled;
+        pools[poolId].config.borrowingEnabled = borrowingEnabled;
+        pools[poolId].config.isPaused = isPaused;
+        pools[poolId].config.maxDepositAmount = maxDepositAmount;
+        pools[poolId].config.minDepositAmount = minDepositAmount;
+        pools[poolId].config.depositCap = depositCap;
+
+        emit PoolConfigurationUpdated(poolId);
     }
 
     /// @notice Updates the pool's cumulative distributions per share and last distribution timestamp

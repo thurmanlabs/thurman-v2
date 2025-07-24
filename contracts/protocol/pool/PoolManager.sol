@@ -27,21 +27,13 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
 
     function addPool(
         address vault,
-        address aavePool,
         address originatorRegistry,
-        uint256 collateralCushion,
-        uint256 ltvRatioCap,
-        uint256 liquidityPremiumRate,
         uint256 marginFee
     ) external onlyOwner {
         if (Pool.addPool(
                 _pools, 
                 vault, 
-                aavePool, 
                 originatorRegistry,
-                collateralCushion, 
-                ltvRatioCap, 
-                liquidityPremiumRate,
                 marginFee,
                 _poolCount
             )) {
@@ -60,17 +52,17 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         uint256 depositCap
     ) external onlyOwner {
         require(poolId < _poolCount, "PoolManager/invalid-pool-id");
-        
-        Types.PoolConfig storage config = _pools[poolId].config;
-        config.depositsEnabled = depositsEnabled;
-        config.withdrawalsEnabled = withdrawalsEnabled;
-        config.borrowingEnabled = borrowingEnabled;
-        config.isPaused = isPaused;
-        config.maxDepositAmount = maxDepositAmount;
-        config.minDepositAmount = minDepositAmount;
-        config.depositCap = depositCap;
-        
-        emit PoolConfigurationUpdated(poolId);
+        Pool.setPoolOperationalSettings(
+            _pools,
+            poolId,
+            depositsEnabled,
+            withdrawalsEnabled,
+            borrowingEnabled,
+            isPaused,
+            maxDepositAmount,
+            minDepositAmount,
+            depositCap
+        );
     }
 
     function setOperator(uint16 poolId, address operator, bool approved) external {

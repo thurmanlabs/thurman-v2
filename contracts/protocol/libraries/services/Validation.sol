@@ -25,39 +25,93 @@ library Validation {
     }
 
     function validateRequestDeposit(
-        address vaultAddress,
+        Types.Pool memory pool,
         address owner,
-        uint256 assets) internal view {
-        IERC7540Vault vault = IERC7540Vault(vaultAddress);
-        require(assets > 0, "ERC7540Vault/invalid-assets");
-        require(assets <= IERC20(vault.asset()).balanceOf(owner), "ERC7540Vault/insufficient-assets");
+        uint256 assets,
+        uint256 currentAssets
+    ) internal view {
+        Types.PoolConfig memory config = pool.config;
+
+        require(owner != address(0), "Deposit/invalid-owner");
+        require(!config.isPaused, "Deposit/pool-paused");
+        require(config.depositsEnabled, "Deposit/deposits-disabled");
+        require(assets >= config.minDepositAmount, "Deposit/amount-too-small");
+        require(assets <= config.maxDepositAmount, "Deposit/amount-too-large");
+        require(assets > 0, "Deposit/invalid-assets");
+        require(assets <= IERC20(vault.asset()).balanceOf(owner), "Deposit/insufficient-assets");
+        require(currentAssets + assets <= config.depositCap, "Deposit/cap-exceeded");
     }
 
     function validateFulfillDepositRequest(
-        Types.UserVaultData memory userVaultData
+        Types.Pool memory pool,
+        uint256 assets,
+        uint256 pendingDepositRequest
     ) internal pure {
-        require(userVaultData.pendingDepositRequest != 0, "ERC7540Vault/no-pending-deposit-request");
+        Types.PoolConfig memory config = pool.config;
+        require(!config.isPaused, "Deposit/pool-paused");
+        require(config.depositsEnabled, "Deposit/deposits-disabled");
+        require(pendingDepositRequest != 0, "Deposit/no-pending-deposit-request");
+        require(assets > 0, "Deposit/invalid-assets");
+        require(pendingDepositRequest >= assets.toUint128(), "Deposit/insufficient-pending-request");
+    }
+
+    function validateDeposit(
+        Types.Pool memory pool,
+        uint256 assets,
+        uint256 currentAssets,
+        uint256 maxMint
+    ) internal view {
+        Types.PoolConfig memory config = pool.config;
+        require(!config.isPaused, "Deposit/pool-paused");
+        require(config.depositsEnabled, "Deposit/deposits-disabled");
+        require(assets > 0, "Deposit/invalid-assets");
+        require(currentAssets + assets <= config.depositCap, "Deposit/cap-exceeded");
+        require(maxMint >= assets, "Deposit/insufficient-mint-allowance");
     }
 
     function validateRequestRedeem(
+        Types.Pool memory pool,
         address sToken,
+        uint256 assets,
         uint256 shares,
         address owner
     ) internal view {
-        require(shares > 0, "ERC7540Vault/invalid-shares");
+        Types.PoolConfig memory config = pool.config;
+        uint256 userBaseline = ISToken(sToken).getUserBaseline(owner);
+        uint256 cumulativeDistributionsPerShare = pool.cumulativeDistributionsPerShare;
+        uint256 userClaimableAssets = shares.rayDiv(cumulativeDistributionsPerShare - userBaseline);
+        require(!config.isPaused, "Redeem/pool-paused");
+        require(config.withdrawalsEnabled, "Redeem/withdrawals-disabled");
+        require(shares > 0, "Redeem/invalid-shares");
         require(shares <= ISToken(sToken).balanceOf(owner), "ERC7540Vault/insufficient-shares");
+        require(userClaimableAssets >= assets, "Redeem/insufficient-claimable-assets");
     }
 
     function validateFulfillRedeemRequest(
-        Types.UserVaultData memory userVaultData
+        Types.Pool memory pool,
+        uint256 shares,
+        uint256 pendingRedeemRequest
     ) internal pure {
-        require(userVaultData.pendingRedeemRequest != 0, "ERC7540Vault/no-pending-redeem-request");
+        Types.PoolConfig memory config = pool.config;
+        require(!config.isPaused, "Redeem/pool-paused");
+        require(config.withdrawalsEnabled, "Redeem/withdrawals-disabled");
+        require(shares > 0, "Redeem/invalid-shares");
+        require(pendingRedeemRequest != 0, "Redeem/no-pending-redeem-request");
     }
 
     function validateRedeem(
-        Types.UserVaultData memory userVaultData,
-        uint256 shares
+        Types.Pool memory pool,
+        uint256 claimableAmount,
+        uint256 pendingRedeemRequest,
+        uint256 maxWithdraw,
+        uint256 assets
     ) internal pure {
+        Types.PoolConfig memory config = pool.config;
+        require(!config.isPaused, "Redeem/pool-paused");
+        require(config.withdrawalsEnabled, "Redeem/withdrawals-disabled");
+        require(pendingRedeemRequest != 0, "Redeem/no-pending-redeem-request");
+        require(claimableAmount >= assets, "Redeem/insufficient-claimable-amount");
+        require(assets <= claimableAmount, "ERC7540Vault/insufficient-claimable-amount");
         require(userVaultData.maxWithdraw >= shares, "ERC7540Vault/insufficient-max-withdraw");
     }
 
@@ -67,17 +121,14 @@ library Validation {
         uint256 principal,
         uint16 termMonths,
         uint256 interestRate
-    ) internal view {
+    ) internal pure {
+        Types.PoolConfig memory config = pool.config;
+        require(!config.isPaused, "PoolManager/pool-paused");
+        require(config.borrowingEnabled, "PoolManager/borrowing-disabled");
         require(borrower != address(0), "PoolManager/invalid-borrower");
         require(principal > 0, "ERC7540Vault/invalid-principal");
         require(termMonths > 0, "ERC7540Vault/invalid-term");
         require(interestRate > 0, "ERC7540Vault/invalid-interest-rate");
-        // Get current collateral
-        IERC7540Vault vault = IERC7540Vault(pool.vault);
-        
-        // Calculate resulting LTV
-        // uint256 newLTV = (pool.ltvRatio + (principal / IERC20(vault.asset()).balanceOf(pool.vault)));
-        // require(newLTV <= pool.config.ltvRatioCap, "PoolManager/ltv-ratio-too-high");
     }
         
 }

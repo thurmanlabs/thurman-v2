@@ -29,19 +29,10 @@ library Deposit {
         address controller,
         address owner
     ) internal {
-        Types.PoolConfig memory config = pools[poolId].config;
-        
-        // Validation block for operational controls
-        require(!config.isPaused, "Deposit/pool-paused");
-        require(config.depositsEnabled, "Deposit/deposits-disabled");
-        require(assets >= config.minDepositAmount, "Deposit/amount-too-small");
-        require(assets <= config.maxDepositAmount, "Deposit/amount-too-large");
-        
-        // Deposit cap check
-        IERC7540Vault vault = IERC7540Vault(pools[poolId].vault);
+        Types.Pool memory pool = pools[poolId];
+        IERC7540Vault vault = IERC7540Vault(pool.vault);
         uint256 currentAssets = vault.totalAssets();
-        require(currentAssets + assets <= config.depositCap, "Deposit/cap-exceeded");
-        
+        Validation.validateRequestDeposit(pool, owner, assets, currentAssets);
         vault.requestDeposit(assets, controller, owner);
     }
 
@@ -51,14 +42,10 @@ library Deposit {
         uint256 assets,
         address receiver
     ) internal {
-        Types.PoolConfig memory config = pools[poolId].config;
-        
-        // Validation block for operational controls
-        require(!config.isPaused, "Deposit/pool-paused");
-        require(config.depositsEnabled, "Deposit/deposits-disabled");
-        
-        Types.Pool storage pool = pools[poolId];
+        Types.Pool memory pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
+        uint256 pendingDepositRequest = vault.pendingDepositRequest(receiver);
+        Validation.validateFulfillDepositRequest(pool, assets, pendingDepositRequest);
         vault.fulfillDepositRequest(assets, receiver);
     }
 
@@ -68,14 +55,11 @@ library Deposit {
         uint256 assets,
         address owner
     ) internal {
-        Types.PoolConfig memory config = pools[poolId].config;
-        
-        // Validation block for operational controls
-        require(!config.isPaused, "Deposit/pool-paused");
-        require(config.depositsEnabled, "Deposit/deposits-disabled");
-        
-        Types.Pool storage pool = pools[poolId];
+        Types.Pool memory pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
+        uint256 maxMint = vault.userVaultData(owner).maxMint;
+        uint256 currentAssets = vault.totalAssets();
+        Validation.validateDeposit(pool, assets, currentAssets, maxMint);
         vault.deposit(assets, owner, owner);
     }
 
@@ -86,15 +70,11 @@ library Deposit {
         address controller,
         address owner
     ) internal {
-        Types.PoolConfig memory config = pools[poolId].config;
-        
-        // Validation block for operational controls
-        require(!config.isPaused, "Redeem/pool-paused");
-        require(config.withdrawalsEnabled, "Redeem/withdrawals-disabled");
-        
-        Types.Pool storage pool = pools[poolId];
+        Types.Pool memory pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
+        address sToken = vault.getShare();
         uint256 shares = vault.convertToShares(assets);
+        Validation.validateRequestRedeem(pool, sToken, assets, shares, owner);
         vault.requestRedeem(shares, controller, owner);
     }
 
@@ -104,15 +84,11 @@ library Deposit {
         uint256 assets,
         address receiver
     ) internal {
-        Types.PoolConfig memory config = pools[poolId].config;
-        
-        // Validation block for operational controls
-        require(!config.isPaused, "Redeem/pool-paused");
-        require(config.withdrawalsEnabled, "Redeem/withdrawals-disabled");
-        
-        Types.Pool storage pool = pools[poolId];
+        Types.Pool memory pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         uint256 shares = vault.convertToShares(assets);
+        uint256 pendingRedeemRequest = vault.pendingRedeemRequest(receiver);
+        Validation.validateFulfillRedeemRequest(pool, shares, pendingRedeemRequest);
         vault.fulfillRedeemRequest(shares, receiver);
     }
 
@@ -122,14 +98,12 @@ library Deposit {
         uint256 assets,
         address receiver
     ) internal {
-        Types.PoolConfig memory config = pools[poolId].config;
-        
-        // Validation block for operational controls
-        require(!config.isPaused, "Redeem/pool-paused");
-        require(config.withdrawalsEnabled, "Redeem/withdrawals-disabled");
-        
-        Types.Pool storage pool = pools[poolId];
+        Types.Pool memory pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
+        uint256 claimableAmount = vault.claimableRedeemRequest(0, receiver);
+        uint256 pendingRedeemRequest = vault.pendingRedeemRequest(receiver);
+        uint256 maxWithdraw = vault.userVaultData(receiver).maxWithdraw;
+        Validation.validateRedeem(pool, claimableAmount, pendingRedeemRequest, maxWithdraw, assets);
         vault.redeem(assets, msg.sender, receiver);
     }
 }
