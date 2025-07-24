@@ -34,12 +34,7 @@ library Loan {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         Validation.validateInitLoan(pool, borrower, principal, termMonths, interestRate);
-        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());
-        uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
-        uint256 aaveCollateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
         vault.initLoan(borrower, originator, retentionRate, principal, termMonths, interestRate);
-        pool.ltvRatio = aaveCollateralBalance == 0 ? 0 : aaveBorrowBalance.rayDiv(aaveCollateralBalance);
-        pool.ltvRatio = aaveCollateralBalance == 0 ? 0 : aaveBorrowBalance.rayDiv(aaveCollateralBalance);
     }
 
     function batchInitLoan(
@@ -71,13 +66,7 @@ library Loan {
             Types.BatchLoanData calldata data = loanData[i];
             vault.initLoan(data.borrower, originator, data.retentionRate, data.principal, data.termMonths, data.interestRate);
         }
-        
-        // Update pool LTV ratio after all loans are processed
-        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());
-        uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
-        uint256 aaveCollateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
-        pool.ltvRatio = aaveCollateralBalance == 0 ? 0 : aaveBorrowBalance.rayDiv(aaveCollateralBalance);
-        pool.ltvRatio = aaveCollateralBalance == 0 ? 0 : aaveBorrowBalance.rayDiv(aaveCollateralBalance);
+
     }
 
     function repayLoan(
@@ -89,20 +78,20 @@ library Loan {
     ) internal {  
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
-        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());
-        uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
+        // Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());
+        // uint256 aaveBorrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
 
         Types.Loan memory loan = vault.getLoan(onBehalfOf, loanId);
 
         (uint256 interestPaid,) = vault.repay(assets, msg.sender, onBehalfOf, loanId);
 
-        uint256 aaveCollateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
-        pool.ltvRatio = aaveCollateralBalance == 0 ? 0 : aaveBorrowBalance.rayDiv(aaveCollateralBalance);
+        // uint256 aaveCollateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
+        // pool.ltvRatio = aaveCollateralBalance == 0 ? 0 : aaveBorrowBalance.rayDiv(aaveCollateralBalance);
         uint256 accruedToTreasury = interestPaid.rayMul(pool.marginFee);
         pool.accruedToTreasury += accruedToTreasury;
-        if (accruedToTreasury > 0) {
-            IPool(pool.aavePool).supply(vault.asset(), accruedToTreasury, pool.vault, 0);
-        }
+        // if (accruedToTreasury > 0) {
+        //     IPool(pool.aavePool).supply(vault.asset(), accruedToTreasury, pool.vault, 0);
+        // }
 
         if (pool.originatorRegistry != address(0) && loan.originator != address(0) && loan.retentionRate > 0) {
             uint256 originatorPortion = interestPaid.rayMul(loan.retentionRate);
@@ -120,8 +109,8 @@ library Loan {
             }
         }
         
-        if (accruedToTreasury > 0) {
-            IPool(pool.aavePool).supply(vault.asset(), accruedToTreasury, pool.vault, 0);
-        }
+        // if (accruedToTreasury > 0) {
+        //     IPool(pool.aavePool).supply(vault.asset(), accruedToTreasury, pool.vault, 0);
+        // }
     }
 }

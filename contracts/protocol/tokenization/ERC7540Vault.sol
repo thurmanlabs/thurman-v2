@@ -100,7 +100,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         userVaultData[receiver].pendingDepositRequest = newPendingDepositRequest;
 
         ISToken sToken = ISToken(share); 
-        sToken.mint(msg.sender, address(this), assets, index);
+        sToken.mint(msg.sender, address(this), assets);
         
         emit DepositClaimable(receiver, REQUEST_ID, assets, shares);
         return REQUEST_ID;
@@ -127,6 +127,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         emit Deposit(controller, receiver, shares.rayDiv(index), shares);
         return shares;
     }
+
+    
 
     function pendingDepositRequest(uint256, address controller) external view returns (uint256) {
         return userVaultData[controller].pendingDepositRequest;
@@ -156,9 +158,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     ) external onlyPoolManager returns (uint256 requestId) {
         Validation.validateFulfillRedeemRequest(userVaultData[receiver]);
         
-        // Use default liquidity index since we're not using Aave
-        uint256 index = WadRayMath.RAY; // 1e27
-        uint256 assets = shares.rayMul(index);
+        uint256 assets = shares;
         userVaultData[receiver].maxWithdraw = userVaultData[receiver].maxWithdraw + assets.toUint128();
         userVaultData[receiver].pendingRedeemRequest = 
             userVaultData[receiver].pendingRedeemRequest > shares ? userVaultData[receiver].pendingRedeemRequest - shares.toUint128() : 0;
@@ -180,9 +180,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         uint256 claimableAmount = this.claimableRedeemRequest(0, owner);
         require(assets <= claimableAmount, "ERC7540Vault/insufficient-claimable-amount");
         
-        // Use default liquidity index since we're not using Aave
-        uint256 index = WadRayMath.RAY; // 1e27
-        shares = assets.rayDiv(index);  // Calculate shares first
+        shares = assets;
         
         // Update maxWithdraw to reflect the amount being redeemed
         userVaultData[owner].maxWithdraw = 
@@ -190,7 +188,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         
         // Burn sTokens and transfer underlying assets to owner
         ISToken sToken = ISToken(share);
-        sToken.burn(address(this), owner, assets, index);
+        sToken.burn(address(this), owner, assets);
         
         emit Withdraw(address(this), controller, owner, assets, shares);
         return shares;
@@ -281,7 +279,6 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         uint256 loanId
     ) external onlyPoolManager returns (uint256 interestPaid, uint256 interestRate) {
         Types.Loan storage loan = loans[onBehalfOf][loanId];
-        address aavePool = IPoolManager(poolManager).getPool(poolId).aavePool;
         // uint256 remainingBalance = IDToken(dToken).balanceOf(onBehalfOf);
         require(loan.status == Types.Status.Active, "ERC7540Vault/loan-not-active");
         // require(remainingBalance >= assets, "ERC7540Vault/insufficient-loan-balance");
@@ -289,8 +286,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         (
             Types.Loan memory updatedLoan, 
             uint256 principalPortion, 
-            uint256 interestPortion,,
-            uint256 aavePaymentAmount
+            uint256 interestPortion,
         ) = ILoanManager(loanManager).processRepayment(
                 loan,
                 address(this),
@@ -328,10 +324,6 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         return userVaultData[user];
     }
 
-    function getAavePoolAddress() external view returns (address) {
-        return IPoolManager(poolManager).getPool(poolId).aavePool;
-    }
-
     function getDToken() external view returns (address) {
         return dToken;
     }
@@ -342,23 +334,19 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
 
     function convertToShares(uint256 assets) 
         public 
-        view 
+        pure 
         override(ERC4626Upgradeable, IERC7540Vault) 
         returns (uint256) 
     {
-        // Use default liquidity index since we're not using Aave
-        uint256 index = WadRayMath.RAY; // 1e27
-        return assets.rayDiv(index);
+        return assets;
     }
 
     function convertToAssets(uint256 shares) 
         public 
-        view 
+        pure 
         override(ERC4626Upgradeable, IERC7540Vault) 
         returns (uint256) 
     {
-        // Use default liquidity index since we're not using Aave
-        uint256 index = WadRayMath.RAY; // 1e27
-        return shares.rayMul(index);
+        return shares;
     }
 }

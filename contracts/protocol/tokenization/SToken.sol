@@ -19,6 +19,9 @@ contract SToken is ISToken, ERC20Upgradeable {
     address public treasury;
     uint16 public poolId;
 
+    // User distribution tracking
+    mapping(address => uint256) public userDistributionBaselines;
+
     modifier onlyAuthorized() {
         require(
                 _msgSender() == IPoolManager(poolManager).getPool(poolId).vault || 
@@ -50,21 +53,15 @@ contract SToken is ISToken, ERC20Upgradeable {
     function mint(
         address caller,
         address onBehalfOf,
-        uint256 amount,
-        uint256 index
+        uint256 amount
     ) external onlyAuthorized returns (bool) {
-        uint256 amountScaled = amount.rayDiv(index);
-        require(amountScaled > 0, "SToken/invalid-mint-amount");
-        uint256 scaledBalance = super.balanceOf(onBehalfOf);
-        uint256 balanceIncrease = scaledBalance.rayMul(index) - 
-            scaledBalance.rayMul(userIndexes[onBehalfOf]);
-        userIndexes[onBehalfOf] = index;
-        _mint(onBehalfOf, amountScaled.toUint128());
-        uint256 amountToMint = amountScaled + balanceIncrease;
-        emit Transfer(address(0), onBehalfOf, amountToMint);
-        emit Mint(caller, onBehalfOf, amountToMint, balanceIncrease, index);
+        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+        userDistributionBaselines[onBehalfOf] = pool.cumulativeDistributionsPerShare;
+        _mint(onBehalfOf, amount.toUint128());
+        emit Transfer(address(0), onBehalfOf, amount);
+        emit Mint(caller, onBehalfOf, amount);
 
-        return (scaledBalance == 0);
+        return (super.balanceOf(onBehalfOf) == 0);
   }
 
   function mintToTreasury(uint256 amount, uint256 index) external onlyAuthorized {
@@ -72,66 +69,63 @@ contract SToken is ISToken, ERC20Upgradeable {
     require(amountScaled > 0, "SToken/invalid-mint-amount");
     _mint(treasury, amountScaled.toUint128());
     emit Transfer(address(0), treasury, amountScaled);
-    emit Mint(msg.sender, treasury, amountScaled, amountScaled, index);
+    emit Mint(msg.sender, treasury, amountScaled);
   }
 
   function burn(
     address from,
     address receiverOfUnderlying,
-    uint256 amount,
-    uint256 index
+    uint256 amount
   ) external onlyAuthorized {
-    uint256 amountScaled = amount.rayDiv(index);
-    require(amountScaled > 0, "SToken/invalid-burn-amount");
-    uint256 scaledBalance = super.balanceOf(from);
-    uint256 balanceIncrease = scaledBalance.rayMul(index) - 
-        scaledBalance.rayMul(userIndexes[from]);
-    userIndexes[from] = index;
-    _burn(from, amountScaled.toUint128());
-
-    if (balanceIncrease > amount) {
-        uint256 amountToMint = balanceIncrease - amount;
-        emit Transfer(address(0), from, amountToMint);
-        emit Mint(from, from, amountToMint, balanceIncrease, index);
-    } else {
-        uint256 amountToBurn = amount - balanceIncrease;
-        emit Transfer(from, address(0), amountToBurn);
-        emit Burn(from, receiverOfUnderlying, amountToBurn, balanceIncrease, index);
-    }
-
-    // Transfer underlying assets from vault to receiver
+    require(amount > 0, "SToken/invalid-burn-amount");
     Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
     IERC7540Vault vault = IERC7540Vault(pool.vault);
+
+    userDistributionBaselines[from] = pool.cumulativeDistributionsPerShare;
+
+    _burn(from, amount.toUint128());
+
+    emit Transfer(from, address(0), amount);
+    emit Burn(from, receiverOfUnderlying, amount);
+
+    // Transfer underlying assets from vault to receiver
+    
     IERC20(asset()).transferFrom(address(vault), receiverOfUnderlying, amount);
   }
 
-  function balanceOf(address user)
-    public
-    view
-    override (ERC20Upgradeable, IERC20)
-    returns (uint256) {
+  function totalClaimableReturns(address user) public view returns (uint256) {
+        uint256 userShares = super.balanceOf(user);
         Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
-        IERC7540Vault vault = IERC7540Vault(pool.vault);
-        uint256 index = IPool(pool.aavePool).getReserveData(vault.asset()).liquidityIndex;
-        uint256 normalizedReturn = IPoolManager(poolManager).getNormalizedReturn(poolId);
-        return super.balanceOf(user).rayMul(index).rayMul(normalizedReturn);
+        return userShares.rayMul(pool.cumulativeDistributionsPerShare - userDistributionBaselines[user]);
     }
 
-    function totalSupply()
-        public
-        view
-        override (ERC20Upgradeable, IERC20)
-        returns (uint256) {
-            Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
-            IERC7540Vault vault = IERC7540Vault(pool.vault);
-            return super.totalSupply().rayMul(IPool(pool.aavePool).getReserveData(vault.asset()).liquidityIndex);
-        }
+//   function balanceOf(address user)
+//     public
+//     view
+//     override (ERC20Upgradeable, IERC20)
+//     returns (uint256) {
+//         Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+//         IERC7540Vault vault = IERC7540Vault(pool.vault);
+//         uint256 index = IPool(pool.aavePool).getReserveData(vault.asset()).liquidityIndex;
+//         uint256 normalizedReturn = IPoolManager(poolManager).getNormalizedReturn(poolId);
+//         return super.balanceOf(user).rayMul(index).rayMul(normalizedReturn);
+//     }
 
-    function getReserveData() public view returns (Types.ReserveData memory) {
-        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
-        IERC7540Vault vault = IERC7540Vault(pool.vault);
-        return IPool(pool.aavePool).getReserveData(vault.asset());
-    }
+    // function totalSupply()
+    //     public
+    //     view
+    //     override (ERC20Upgradeable, IERC20)
+    //     returns (uint256) {
+    //         Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+    //         IERC7540Vault vault = IERC7540Vault(pool.vault);
+    //         return super.totalSupply();
+    //     }
+
+    // function getReserveData() public view returns (Types.ReserveData memory) {
+    //     Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+    //     IERC7540Vault vault = IERC7540Vault(pool.vault);
+    //     return IPool(pool.aavePool).getReserveData(vault.asset());
+    // }
 
     function asset() public view returns (address) {
         Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);

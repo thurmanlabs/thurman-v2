@@ -19,20 +19,12 @@ library Pool {
     function addPool(
         mapping(uint16 => Types.Pool) storage pools,
         address vault,
-        address aavePool,
         address originatorRegistry,
-        uint256 collateralCushion,
-        uint256 ltvRatioCap,
-        uint256 liquidityPremiumRate,
         uint256 marginFee,
         uint16 poolCount
     ) internal returns (bool) {
         pools[poolCount].vault = vault;
-        pools[poolCount].aavePool = aavePool;
         pools[poolCount].originatorRegistry = originatorRegistry;
-        pools[poolCount].config.collateralCushion = collateralCushion;
-        pools[poolCount].config.ltvRatioCap = ltvRatioCap;
-        pools[poolCount].config.liquidityPremiumRate = liquidityPremiumRate;
         pools[poolCount].config.marginFee = marginFee;
         
         // Initialize new operational control fields with default values
@@ -44,51 +36,49 @@ library Pool {
         pools[poolCount].config.minDepositAmount = 0;
         pools[poolCount].config.depositCap = type(uint256).max;
         
-        pools[poolCount].liquidityPremiumIndex = WadRayMath.RAY;
-        pools[poolCount].lastUpdateTimestamp = uint40(block.timestamp);
-
         IERC7540Vault _vault = IERC7540Vault(vault);
         emit PoolAdded(poolCount, vault, _vault.asset());
         return true;
     }
 
+    /// @notice Updates the pool's cumulative distributions per share and last distribution timestamp
+    /// @param pools The mapping of pool IDs to pool data
+    /// @param poolId The ID of the pool to update
+    /// @param paymentAmount The amount of payment to be distributed to LPs
     function update(
         mapping(uint16 => Types.Pool) storage pools,
-        uint16 poolId
+        uint16 poolId,
+        uint256 paymentAmount
     ) internal {
         Types.Pool storage pool = pools[poolId];
-        uint256 utilizationRate = getUtilizationRate(pool);
-        uint256 currentIndex = pool.liquidityPremiumIndex;
-        if (pool.config.liquidityPremiumRate != 0) {
-            uint256 cumulatedInterest = MathUtils.calculateLinearInterest(
-                pool.config.liquidityPremiumRate, 
-                pool.lastUpdateTimestamp
-            );
-            pool.liquidityPremiumIndex = currentIndex.rayMul(cumulatedInterest.rayMul(utilizationRate));
-        }
-        pool.lastUpdateTimestamp = uint40(block.timestamp);
+        ISToken sToken = ISToken(IERC7540Vault(pool.vault).getShare());
+        uint256 currentTotalShares = sToken.totalSupply();
+        require(currentTotalShares > 0, "Pool/invalid-total-shares");
+
+        pool.cumulativeDistributionsPerShare += paymentAmount.rayDiv(currentTotalShares);
+        pool.lastDistributionTimestamp = uint40(block.timestamp);
     }
 
-    function getNormalizedReturn(Types.Pool memory pool) internal view returns (uint256) {
-        uint40 timestamp = pool.lastUpdateTimestamp;
-        uint256 utilizationRate = getUtilizationRate(pool);
+    // function getNormalizedReturn(Types.Pool memory pool) internal view returns (uint256) {
+    //     uint40 timestamp = pool.lastUpdateTimestamp;
+    //     uint256 utilizationRate = getUtilizationRate(pool);
 
-        if (timestamp == block.timestamp) {
-            return pool.liquidityPremiumIndex;
-        }
+    //     if (timestamp == block.timestamp) {
+    //         return pool.liquidityPremiumIndex;
+    //     }
 
-        return (MathUtils.calculateLinearInterest(
-            pool.config.liquidityPremiumRate, 
-            pool.lastUpdateTimestamp
-        ).rayMul(utilizationRate) + WadRayMath.RAY).rayMul(pool.liquidityPremiumIndex);
-    }
+    //     return (MathUtils.calculateLinearInterest(
+    //         pool.config.liquidityPremiumRate, 
+    //         pool.lastUpdateTimestamp
+    //     ).rayMul(utilizationRate) + WadRayMath.RAY).rayMul(pool.liquidityPremiumIndex);
+    // }
 
-    function getUtilizationRate(Types.Pool memory pool) internal view returns (uint256) {
-        IERC7540Vault vault = IERC7540Vault(pool.vault);
-        Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());
-        uint256 collateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
-        uint256 borrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
-        return borrowBalance.rayDiv(collateralBalance);
+    // function getUtilizationRate(Types.Pool memory pool) internal view returns (uint256) {
+    //     IERC7540Vault vault = IERC7540Vault(pool.vault);
+    //     Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());
+    //     uint256 collateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
+    //     uint256 borrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
+    //     return borrowBalance.rayDiv(collateralBalance);
     }
 
     function mintToTreasury(

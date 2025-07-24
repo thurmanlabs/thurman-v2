@@ -291,13 +291,6 @@ interface IERC7540Vault is IERC4626 {
     function getUserVaultData(address user) external view returns (Types.UserVaultData memory);
 
     /**
-     * @dev Returns the aave pool address.
-     *
-     * @return aavePool the address of the aave pool
-     */
-    function getAavePoolAddress() external view returns (address);
-
-    /**
      * @dev Returns the dToken address.
      *
      * @return dToken the address of the dToken

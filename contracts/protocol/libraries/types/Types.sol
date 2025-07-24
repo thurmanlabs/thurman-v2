@@ -94,7 +94,7 @@ library Types {
         uint176 currentBorrowerIndex; // 176 bits
 
         // Slot 6: Aave balance (256 bits)
-        uint256 aaveBalance;        // Full slot
+        // uint256 aaveBalance;        // Full slot
         /// @dev The address of the originator of the loan
         address originator;
         /// @dev The amount of interest retained by the originator
@@ -126,31 +126,19 @@ library Types {
         PoolConfig config;
         /// @dev The address of the vault
         address vault;
-        /// @dev The address of the aave pool
-        address aavePool;
         /// @dev The address of the originator registry
         address originatorRegistry;
-        /// @dev The ltv ratio of Thurman's aave collateral and borrows
-        uint256 ltvRatio;
         /// @dev The accrued to treasury
         uint256 accruedToTreasury;
         /// @dev The margin fee accrued to treasury
         uint256 marginFee;
-        /// @dev The last update timestamp of the liquidity premium index
-        uint40 lastUpdateTimestamp;
-        /// @dev The liquidity premium index
-        uint256 liquidityPremiumIndex;
+        /// @dev The cumulative distributions of payments to LPs per share
+        uint256 cumulativeDistributionsPerShare;
+        /// @dev The last timestamp of a distribution of payments to LPs
+        uint40 lastDistributionTimestamp;
     }
 
     struct PoolConfig {
-        /// @dev The ltv ratio cap
-        uint256 ltvRatioCap;
-        /// @dev The collateral cushion for individual loans expressed in ray
-        uint256 collateralCushion;
-        /// @dev The margin fee accrued to treasury
-        uint256 marginFee;
-        /// @dev The liquidity premium rate
-        uint256 liquidityPremiumRate;
         /// @dev Toggle deposit operations
         bool depositsEnabled;
         /// @dev Toggle withdrawal operations
@@ -181,5 +169,11 @@ library Types {
         uint256 principal;
         uint16 termMonths;
         uint256 interestRate;
+    }
+
+    struct BatchRepaymentData {
+        address borrower;
+        uint256 loanId;
+        uint256 paymentAmount;
     }
 }

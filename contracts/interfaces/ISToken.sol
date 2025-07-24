@@ -6,17 +6,13 @@ interface ISToken is IERC20 {
   event Mint(
     address indexed caller,
     address indexed onBehalfOf,
-    uint256 value,
-    uint256 balanceIncrease,
-    uint256 index
+    uint256 value
   );
 
   event Burn(
     address indexed from,
     address indexed receiverOfUnderlying,
-    uint256 value,
-    uint256 balanceIncrease,
-    uint256 index
+    uint256 value
   );
   
     /**
@@ -24,14 +20,12 @@ interface ISToken is IERC20 {
    * @param caller The address performing the mint
    * @param onBehalfOf The address of the user that will receive the minted aTokens
    * @param amount The amount of tokens getting minted
-   * @param index The next liquidity index of the reserve
    * @return `true` if the the previous balance of the user was 0
    */
   function mint(
     address caller,
     address onBehalfOf,
-    uint256 amount,
-    uint256 index
+    uint256 amount
   ) external returns (bool);
 
   function mintToTreasury(uint256 amount, uint256 index) external;
@@ -43,12 +37,17 @@ interface ISToken is IERC20 {
    * @param from The address from which the aTokens will be burned
    * @param receiverOfUnderlying The address that will receive the underlying
    * @param amount The amount being burned
-   * @param index The next liquidity index of the reserve
    */
   function burn(
     address from, 
     address receiverOfUnderlying, 
-    uint256 amount, 
-    uint256 index
+    uint256 amount
   ) external;
+
+  /**
+   * @notice Returns the total claimable returns for a user
+   * @param user The address of the user
+   * @return The total claimable returns
+   */
+  function totalClaimableReturns(address user) external view returns (uint256);
 }

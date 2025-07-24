@@ -37,7 +37,6 @@ interface ILoanManager {
      * @return principalPortion The principal portion.
      * @return interestPortion The interest portion.
      * @return remainingInterest The remaining interest.
-     * @return aavePaymentAmount The amount of aave to pay.
      */
     function processRepayment(
         Types.Loan memory loan,
@@ -48,8 +47,7 @@ interface ILoanManager {
         Types.Loan memory updatedLoan, 
         uint256 principalPortion, 
         uint256 interestPortion, 
-        uint256 remainingInterest, 
-        uint256 aavePaymentAmount
+        uint256 remainingInterest
     );
         
 }

@@ -128,20 +128,12 @@ interface IPoolManager {
     /**
     * @dev Adds a new pool to the pool manager
     * @param vault The address of the vault to add
-    * @param aavePool The address of the aave pool to add
     * @param originatorRegistry The address of the originator registry to add
-    * @param collateralCushion The collateral cushion for the pool
-    * @param ltvRatioCap The ltv ratio cap for the pool
-    * @param liquidityPremiumRate The liquidity premium rate for the pool
     * @param marginFee The margin fee for the pool
     */
     function addPool(
         address vault,
-        address aavePool,
         address originatorRegistry,
-        uint256 collateralCushion,
-        uint256 ltvRatioCap,
-        uint256 liquidityPremiumRate,
         uint256 marginFee
     ) external;
 

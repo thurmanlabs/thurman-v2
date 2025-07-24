@@ -47,7 +47,6 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
             interestRate: uint128(interestRate),
             termMonths: termMonths,
             nextPaymentDate: uint40(block.timestamp + 30 days),
-            aaveBalance: principal,
             remainingMonthlyPayment: uint128(payment),
             currentPaymentIndex: 0,
             status: Types.Status.Active,
@@ -69,8 +68,7 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
         Types.Loan memory updatedLoan,
         uint256 principalPortion,
         uint256 interestPortion,
-        uint256 remainingInterest,
-        uint256 aavePaymentAmount
+        uint256 remainingInterest
     ) {
         require(loan.status == Types.Status.Active, "LoanManager/loan-not-active");
 
@@ -84,9 +82,6 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
             IERC7540Vault(vault).getAavePoolAddress()
         ).getReserveData(IERC7540Vault(vault).asset()).variableBorrowIndex;
 
-        uint256 balanceIncrease = loan.aaveBalance
-            .rayMul(currentBorrowerIndex.rayDiv(loan.currentBorrowerIndex) - WadRayMath.RAY);
-    
         uint256 totalInterestDue = LoanMath.calculateMonthlyInterest(loan, remainingBalance);
 
         // Interest always gets paid first
@@ -116,15 +111,6 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
             loan.remainingMonthlyPayment = uint128(scheduledPayment - assets);
         }
 
-        // 4. Handle Aave repayment amount calculation
-        aavePaymentAmount = _calculateAaveRepaymentAmount(
-            principalPortion,
-            balanceIncrease,
-            loan.aaveBalance
-        ); 
-    
-        // 5. Update loan tracking data
-        loan.aaveBalance = loan.aaveBalance + balanceIncrease - aavePaymentAmount;
         loan.currentBorrowerIndex = uint176(currentBorrowerIndex);
         loan.lastUpdateTimestamp = uint40(currentTimestamp);
         
@@ -135,7 +121,7 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
         
         // Return values needed by the vault
         remainingInterest = totalInterestDue - interestPortion;
-        return (loan, principalPortion, interestPortion, remainingInterest, aavePaymentAmount);
+        return (loan, principalPortion, interestPortion, remainingInterest);
         
     }
 
