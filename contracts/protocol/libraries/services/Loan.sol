@@ -113,4 +113,16 @@ library Loan {
         //     IPool(pool.aavePool).supply(vault.asset(), accruedToTreasury, pool.vault, 0);
         // }
     }
+
+    function batchRepayLoan(
+        mapping(uint16 => Types.Pool) storage pools,
+        uint16 poolId,
+        Types.BatchRepaymentData[] calldata repayments,
+        address originator
+    ) internal {
+        Types.Pool storage pool = pools[poolId];
+        IERC7540Vault vault = IERC7540Vault(pool.vault);
+
+        vault.batchRepayLoans(repayments, originator);
+    }
 }

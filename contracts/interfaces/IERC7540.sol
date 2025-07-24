@@ -284,6 +284,17 @@ interface IERC7540Vault is IERC4626 {
     ) external returns (uint256 remainingInterest, uint256 interestRate); 
 
     /**
+     * @dev Repays multiple loans in a single transaction.
+     *
+     * @param repayments array of repayment data containing paymentAmount, borrower, and loanId
+     * @param originator the address of the originator
+     */
+    function batchRepayLoans(
+        Types.BatchRepaymentData[] calldata repayments,
+        address originator
+    ) external;
+
+    /**
      * @dev Returns the address of the share token.
      *
      * @return share the address of the share token

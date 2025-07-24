@@ -126,6 +126,19 @@ interface IPoolManager {
     ) external;
 
     /**
+     * @dev Repays multiple loans in a single transaction.
+     *
+     * @param poolId the id of the pool to repay the loans for
+     * @param repayments array of repayment data containing paymentAmount, borrower, and loanId
+     * @param originator the address of the originator
+     */
+    function batchRepayLoans(
+        uint16 poolId,
+        Types.BatchRepaymentData[] calldata repayments,
+        address originator
+    ) external;
+
+    /**
     * @dev Adds a new pool to the pool manager
     * @param vault The address of the vault to add
     * @param originatorRegistry The address of the originator registry to add
