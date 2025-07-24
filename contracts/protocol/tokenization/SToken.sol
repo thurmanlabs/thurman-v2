@@ -77,7 +77,9 @@ contract SToken is ISToken, ERC20Upgradeable {
     address receiverOfUnderlying,
     uint256 amount
   ) external onlyAuthorized {
+    // TODO: use cumulative distributions per share to calculate the amount to burn
     require(amount > 0, "SToken/invalid-burn-amount");
+    require(super.balanceOf(from) >= amount, "SToken/insufficient-balance");
     Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
     IERC7540Vault vault = IERC7540Vault(pool.vault);
 

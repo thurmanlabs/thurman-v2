@@ -305,6 +305,38 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         return (interestPortion, loan.interestRate);
     }
 
+    function batchRepayLoans(
+        Types.BatchRepaymentData[] calldata repayments,
+        address originator
+    ) external onlyPoolManager {
+        require(repayments.length > 0, "ERC7540Vault/empty-batch");
+        require(repayments.length <= 100, "ERC7540Vault/batch-too-large"); // Prevent gas limit issues
+
+        uint256[] memory loanIds = new uint256[](repayments.length);
+        address[] memory borrowers = new address[](repayments.length);
+        uint256[] memory paymentAmounts = new uint256[](repayments.length);
+        uint256[] memory interestPortions = new uint256[](repayments.length);
+
+        for (uint256 i = 0; i < repayments.length; i++) {
+            Types.BatchRepaymentData calldata data = repayments[i];
+
+            // Call the existing repay function
+            (uint256 interestPaid, ) = this.repay(
+                data.paymentAmount,
+                originator,
+                data.borrower,
+                data.loanId
+            );
+
+            loanIds[i] = data.loanId;
+            borrowers[i] = data.borrower;
+            paymentAmounts[i] = data.paymentAmount;
+            interestPortions[i] = interestPaid;
+        }
+
+        emit BatchRepaymentProcessed(originator, loanIds, borrowers, paymentAmounts, interestPortions);
+    }
+
     function pendingRedeemRequest(uint256, address controller) external view returns (uint256) {
         return userVaultData[controller].pendingRedeemRequest;
     }

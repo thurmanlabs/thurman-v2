@@ -71,6 +71,14 @@ interface IERC7540Vault is IERC4626 {
         uint256[] principals
     );
 
+    event BatchRepaymentProcessed(
+        address indexed originator,
+        uint256[] loanIds,
+        address[] borrowers,
+        uint256[] paymentAmounts,
+        uint256[] interestPortions
+    );
+
     /**
      * @dev Sets or removes an operator for the caller.
      *
