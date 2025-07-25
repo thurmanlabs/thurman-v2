@@ -251,9 +251,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         uint256 loanId
     ) external onlyPoolManager returns (uint256 interestPaid, uint256 interestRate) {
         Types.Loan storage loan = loans[onBehalfOf][loanId];
-        // uint256 remainingBalance = IDToken(dToken).balanceOf(onBehalfOf);
         require(loan.status == Types.Status.Active, "ERC7540Vault/loan-not-active");
-        // require(remainingBalance >= assets, "ERC7540Vault/insufficient-loan-balance");
 
         (
             Types.Loan memory updatedLoan, 
@@ -288,23 +286,40 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         address[] memory borrowers = new address[](repayments.length);
         uint256[] memory paymentAmounts = new uint256[](repayments.length);
         uint256[] memory interestPortions = new uint256[](repayments.length);
-
+        
+        uint256 totalRepayment = 0;
+        uint256 totalInterestPortion = 0;
+        uint256 totalPrincipalPortion = 0;
+        
         for (uint256 i = 0; i < repayments.length; i++) {
             Types.BatchRepaymentData calldata data = repayments[i];
 
-            // Call the existing repay function
-            (uint256 interestPaid, ) = this.repay(
+            (
+                Types.Loan memory updatedLoan, 
+                uint256 principalPortion, 
+                uint256 interestPortion,
+            ) = ILoanManager(loanManager).processRepayment(
+                    data.loan,
+                address(this),
                 data.paymentAmount,
-                originator,
-                data.borrower,
-                data.loanId
+                data.borrower
             );
+
+            totalRepayment += data.paymentAmount;
+            totalInterestPortion += interestPortion;
+            totalPrincipalPortion += principalPortion;
+
+            loans[data.borrower][data.loanId] = updatedLoan;
 
             loanIds[i] = data.loanId;
             borrowers[i] = data.borrower;
             paymentAmounts[i] = data.paymentAmount;
-            interestPortions[i] = interestPaid;
+            interestPortions[i] = interestPortion;
         }
+
+        IERC20(asset()).transferFrom(originator, address(this), totalRepayment);
+        IERC20(asset()).transfer(share, totalRepayment);
+        IDToken(dToken).burn(originator, totalPrincipalPortion);
 
         emit BatchRepaymentProcessed(originator, loanIds, borrowers, paymentAmounts, interestPortions);
     }

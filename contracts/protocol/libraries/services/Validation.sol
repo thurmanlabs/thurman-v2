@@ -8,6 +8,7 @@ import {Types} from "../types/Types.sol";
 import {WadRayMath} from "../math/WadRayMath.sol";
 import {IAToken} from "../../../interfaces/IAToken.sol";
 import {IPool} from "../../../interfaces/IPool.sol";
+import {IOriginatorRegistry} from "../../../interfaces/IOriginatorRegistry.sol";
 
 library Validation {
     using WadRayMath for uint256;
@@ -31,6 +32,7 @@ library Validation {
         uint256 currentAssets
     ) internal view {
         Types.PoolConfig memory config = pool.config;
+        IERC7540Vault vault = IERC7540Vault(pool.vault);
 
         require(owner != address(0), "Deposit/invalid-owner");
         require(!config.isPaused, "Deposit/pool-paused");
@@ -52,7 +54,7 @@ library Validation {
         require(config.depositsEnabled, "Deposit/deposits-disabled");
         require(pendingDepositRequest != 0, "Deposit/no-pending-deposit-request");
         require(assets > 0, "Deposit/invalid-assets");
-        require(pendingDepositRequest >= assets.toUint128(), "Deposit/insufficient-pending-request");
+        require(pendingDepositRequest >= assets, "Deposit/insufficient-pending-request");
     }
 
     function validateDeposit(
@@ -60,7 +62,7 @@ library Validation {
         uint256 assets,
         uint256 currentAssets,
         uint256 maxMint
-    ) internal view {
+    ) internal pure {
         Types.PoolConfig memory config = pool.config;
         require(!config.isPaused, "Deposit/pool-paused");
         require(config.depositsEnabled, "Deposit/deposits-disabled");
@@ -107,12 +109,13 @@ library Validation {
         uint256 assets
     ) internal pure {
         Types.PoolConfig memory config = pool.config;
+        uint256 shares = assets;
         require(!config.isPaused, "Redeem/pool-paused");
         require(config.withdrawalsEnabled, "Redeem/withdrawals-disabled");
         require(pendingRedeemRequest != 0, "Redeem/no-pending-redeem-request");
         require(claimableAmount >= assets, "Redeem/insufficient-claimable-amount");
         require(assets <= claimableAmount, "ERC7540Vault/insufficient-claimable-amount");
-        require(userVaultData.maxWithdraw >= shares, "ERC7540Vault/insufficient-max-withdraw");
+        require(maxWithdraw >= shares, "ERC7540Vault/insufficient-max-withdraw");
     }
 
     function validateInitLoan(
@@ -132,6 +135,7 @@ library Validation {
     }
 
     function validateBatchInitLoan(
+        Types.Pool memory pool,
         address originator,
         Types.BatchLoanData[] calldata loanData
     ) internal pure {
@@ -142,6 +146,37 @@ library Validation {
         for (uint256 i = 0; i < loanData.length; i++) {
             Types.BatchLoanData calldata data = loanData[i];
             validateInitLoan(pool, data.borrower, data.principal, data.termMonths, data.interestRate);
+        }
+    }
+
+    function validateRepayLoan(
+        Types.Pool memory pool,
+        address onBehalfOf,
+        address caller,
+        uint256 assets
+    ) internal view {
+        Types.PoolConfig memory config = pool.config;
+        IERC7540Vault vault = IERC7540Vault(pool.vault);
+        require(!config.isPaused, "Loan/pool-paused");
+        require(config.borrowingEnabled, "Loan/borrowing-disabled");
+        require(onBehalfOf != address(0), "Loan/invalid-on-behalf-of");
+        require(assets > 0, "Loan/invalid-assets");
+        require(assets <= IERC20(vault.asset()).balanceOf(caller), "Loan/insufficient-assets");
+    }
+
+    function validateBatchRepayLoan(
+        Types.Pool memory pool,
+        address originator,
+        address caller,
+        Types.BatchRepaymentData[] calldata repayments
+    ) internal view {
+        require(originator != address(0), "Loan/invalid-originator");
+        require(repayments.length > 0, "Loan/empty-batch");
+        require(repayments.length <= 100, "Loan/batch-too-large");
+
+        for (uint256 i = 0; i < repayments.length; i++) {
+            Types.BatchRepaymentData calldata data = repayments[i];
+            validateRepayLoan(pool, data.borrower, caller, data.paymentAmount);
         }
     }
 

@@ -19,6 +19,7 @@ contract OriginatorRegistry is
     address public paymentAsset;
     mapping(address => uint256) public originatorBalances;
     mapping(uint16 => mapping(address => uint256)) originatedPrincipal;
+    mapping(uint16 => mapping(address => uint256)) public saleProceedsTransferred;
     mapping(address => bool) public isRegisteredOriginator;
     
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -60,6 +61,17 @@ contract OriginatorRegistry is
         IERC20(paymentAsset).transfer(msg.sender, amount);
         
         emit OriginatorWithdrawal(msg.sender, amount);
+    }
+
+    function transferSaleProceeds(uint16 poolId, address originator, uint256 amount) external onlyRole(ACCRUER_ROLE) {
+        uint256 entitlement = originatedPrincipal[poolId][originator];
+        uint256 alreadyTransferred = saleProceedsTransferred[poolId][originator];
+        require(alreadyTransferred + amount <= entitlement, "OriginatorRegistry/exceeds-entitlement");
+
+        saleProceedsTransferred[poolId][originator] += amount;
+        IERC20(paymentAsset).transfer(originator, amount);
+
+        emit SaleProceedsTransferred(poolId, originator, amount);
     }
     
     function registerOriginator(address originator) external onlyRole(ADMIN_ROLE) {

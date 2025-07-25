@@ -75,10 +75,6 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
         require(remainingBalance > 0, "LoanManager/loan-fully-repaid");
 
         uint256 currentTimestamp = block.timestamp;
-        
-        uint256 currentBorrowerIndex = IPool(
-            IERC7540Vault(vault).getAavePoolAddress()
-        ).getReserveData(IERC7540Vault(vault).asset()).variableBorrowIndex;
 
         uint256 totalInterestDue = LoanMath.calculateMonthlyInterest(loan, remainingBalance);
 
@@ -108,8 +104,7 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
             // Partial payment - reduce remaining monthly payment
             loan.remainingMonthlyPayment = uint128(scheduledPayment - assets);
         }
-
-        loan.currentBorrowerIndex = uint176(currentBorrowerIndex);
+        
         loan.lastUpdateTimestamp = uint40(currentTimestamp);
         
         // 6. Check if loan is fully paid

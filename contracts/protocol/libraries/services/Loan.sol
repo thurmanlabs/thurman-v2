@@ -27,7 +27,7 @@ library Loan {
     ) internal {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
-        Validation.validateInitLoan(pool, borrower, principal, termMonths, interestRate, vault);
+        Validation.validateInitLoan(pool, borrower, principal, termMonths, interestRate);
         vault.initLoan(borrower, originator, retentionRate, principal, termMonths, interestRate);
         pool.totalPrincipal += principal;
         IOriginatorRegistry(pool.originatorRegistry).recordOriginatedPrincipal(originator, principal, poolId);
@@ -41,7 +41,7 @@ library Loan {
     ) internal {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
-        Validation.validateBatchInitLoan(originator, loanData);
+        Validation.validateBatchInitLoan(pool, originator, loanData);
         vault.batchInitLoan(loanData, originator);
 
 
@@ -62,6 +62,7 @@ library Loan {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         Types.Loan memory loan = vault.getLoan(onBehalfOf, loanId);
+        Validation.validateRepayLoan(pool, onBehalfOf, msg.sender, assets);
 
         (uint256 interestPaid,) = vault.repay(assets, msg.sender, onBehalfOf, loanId);
         uint256 accruedToTreasury = interestPaid.rayMul(pool.marginFee);
@@ -83,9 +84,6 @@ library Loan {
             }
         }
         
-        // if (accruedToTreasury > 0) {
-        //     IPool(pool.aavePool).supply(vault.asset(), accruedToTreasury, pool.vault, 0);
-        // }
     }
 
     function batchRepayLoan(
@@ -96,7 +94,7 @@ library Loan {
     ) internal {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
-
+        Validation.validateBatchRepayLoan(pool, originator, msg.sender, repayments);
         vault.batchRepayLoans(repayments, originator);
     }
 }
