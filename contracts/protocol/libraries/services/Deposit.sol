@@ -31,7 +31,9 @@ library Deposit {
     ) internal {
         Types.Pool memory pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
-        uint256 currentAssets = vault.totalAssets();
+        address sTokenAddress = vault.getShare();
+        ISToken sToken = ISToken(sTokenAddress);
+        uint256 currentAssets = IERC20(sToken.asset()).balanceOf(sTokenAddress);
         Validation.validateRequestDeposit(pool, owner, assets, currentAssets);
         vault.requestDeposit(assets, controller, owner);
     }
@@ -46,6 +48,7 @@ library Deposit {
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         uint256 pendingDepositRequest = vault.pendingDepositRequest(receiver);
         Validation.validateFulfillDepositRequest(pool, assets, pendingDepositRequest);
+        pool.totalDeposits += assets;
         vault.fulfillDepositRequest(assets, receiver);
     }
 
@@ -57,8 +60,10 @@ library Deposit {
     ) internal {
         Types.Pool memory pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
+        address sTokenAddress = vault.getShare();
+        ISToken sToken = ISToken(sTokenAddress);
+        uint256 currentAssets = IERC20(sToken.asset()).balanceOf(sTokenAddress);
         uint256 maxMint = vault.userVaultData(owner).maxMint;
-        uint256 currentAssets = vault.totalAssets();
         Validation.validateDeposit(pool, assets, currentAssets, maxMint);
         vault.deposit(assets, owner, owner);
     }

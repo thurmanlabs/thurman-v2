@@ -123,12 +123,40 @@ library Validation {
         uint256 interestRate
     ) internal pure {
         Types.PoolConfig memory config = pool.config;
-        require(!config.isPaused, "PoolManager/pool-paused");
-        require(config.borrowingEnabled, "PoolManager/borrowing-disabled");
-        require(borrower != address(0), "PoolManager/invalid-borrower");
-        require(principal > 0, "ERC7540Vault/invalid-principal");
-        require(termMonths > 0, "ERC7540Vault/invalid-term");
-        require(interestRate > 0, "ERC7540Vault/invalid-interest-rate");
+        require(!config.isPaused, "Loan/pool-paused");
+        require(config.borrowingEnabled, "Loan/borrowing-disabled");
+        require(borrower != address(0), "Loan/invalid-borrower");
+        require(principal > 0, "Loan/invalid-principal");
+        require(termMonths > 0, "Loan/invalid-term");
+        require(interestRate > 0, "Loan/invalid-interest-rate");
+    }
+
+    function validateBatchInitLoan(
+        address originator,
+        Types.BatchLoanData[] calldata loanData
+    ) internal pure {
+        require(originator != address(0), "Loan/invalid-originator");
+        require(loanData.length > 0, "Loan/empty-batch");
+        require(loanData.length <= 100, "Loan/batch-too-large");
+
+        for (uint256 i = 0; i < loanData.length; i++) {
+            Types.BatchLoanData calldata data = loanData[i];
+            validateInitLoan(pool, data.borrower, data.principal, data.termMonths, data.interestRate);
+        }
+    }
+
+    function validateTransferSaleProceeds(
+        Types.Pool memory pool,
+        address originator,
+        uint256 amount
+    ) internal view {
+        IOriginatorRegistry originatorRegistry = IOriginatorRegistry(pool.originatorRegistry);
+        require(originator != address(0), "Pool/invalid-originator");
+        require(amount > 0, "Pool/invalid-amount");
+        require(originatorRegistry.isRegisteredOriginator(originator), "Pool/originator-not-registered");
+        require(pool.totalPrincipal > 0, "Pool/no-principal");
+        require(pool.totalDeposits > 0, "Pool/no-deposits");
+        require(pool.totalPrincipal <= pool.totalDeposits, "Pool/principal-exceeds-deposits");
     }
         
 }

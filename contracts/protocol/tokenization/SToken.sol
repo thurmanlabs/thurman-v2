@@ -95,6 +95,12 @@ contract SToken is ISToken, ERC20Upgradeable {
     IERC20(asset()).transferFrom(address(vault), receiverOfUnderlying, amount);
   }
 
+  function transferUnderlyingToOriginator(uint256 amount, address originator) external onlyAuthorized {
+    Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
+    IERC7540Vault vault = IERC7540Vault(pool.vault);
+    IERC20(asset()).transferFrom(address(vault), originator, amount);
+  }
+
   function totalClaimableReturns(address user) public view returns (uint256) {
         uint256 userShares = super.balanceOf(user);
         Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);

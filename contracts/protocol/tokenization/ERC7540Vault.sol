@@ -185,9 +185,6 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         uint16 termMonths,
         uint256 interestRate
     ) external onlyPoolManager {
-        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
-        Validation.validateInitLoan(pool, borrower, principal, termMonths, interestRate);
-
         Types.Loan memory loan = ILoanManager(loanManager).createLoan(
             nextLoanId++, 
             originator, 
@@ -199,8 +196,8 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
 
         loans[borrower].push(loan);
         
-        // Mint debt tokens to the borrower
-        IDToken(dToken).mint(borrower, principal);
+        // Mint debt tokens to the originator
+        IDToken(dToken).mint(originator, principal);
         
         emit LoanInitialized(loan.id, borrower, principal, termMonths, interestRate);
     }
@@ -209,24 +206,14 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         Types.BatchLoanData[] calldata loanData,
         address originator
     ) external onlyPoolManager {
-        require(loanData.length > 0, "ERC7540Vault/empty-batch");
-        require(loanData.length <= 100, "ERC7540Vault/batch-too-large"); // Prevent gas limit issues
-        
         uint256[] memory loanIds = new uint256[](loanData.length);
         address[] memory borrowers = new address[](loanData.length);
         uint256[] memory principals = new uint256[](loanData.length);
-        
-        Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
         
         uint256 totalPrincipal = 0;
         
         for (uint256 i = 0; i < loanData.length; i++) {
             Types.BatchLoanData calldata data = loanData[i];
-            
-            // Validate loan data
-            Validation.validateInitLoan(pool, data.borrower, data.principal, data.termMonths, data.interestRate);
-            
-            // Create loan
             Types.Loan memory loan = ILoanManager(loanManager).createLoan(
                 nextLoanId, 
                 originator, 
@@ -320,6 +307,10 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         }
 
         emit BatchRepaymentProcessed(originator, loanIds, borrowers, paymentAmounts, interestPortions);
+    }
+
+    function transferSaleProceeds(uint256 amount, address originator) external onlyPoolManager {
+        ISToken(share).transferUnderlyingToOriginator(amount, originator);
     }
 
     function pendingRedeemRequest(uint256, address controller) external view returns (uint256) {

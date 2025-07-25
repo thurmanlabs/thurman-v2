@@ -18,6 +18,7 @@ contract OriginatorRegistry is
     // Storage variables directly in the contract
     address public paymentAsset;
     mapping(address => uint256) public originatorBalances;
+    mapping(uint16 => mapping(address => uint256)) originatedPrincipal;
     mapping(address => bool) public isRegisteredOriginator;
     
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -42,7 +43,15 @@ contract OriginatorRegistry is
         
         emit OriginatorInterestAccrued(originator, amount, poolId, loanId);
     }
-    
+
+    function recordOriginatedPrincipal(
+        address originator, 
+        uint256 amount, 
+        uint16 poolId
+    ) external onlyRole(ACCRUER_ROLE) {
+        originatedPrincipal[poolId][originator] += amount;
+    }
+
     function withdraw() external {
         uint256 amount = originatorBalances[msg.sender];
         require(amount > 0, "OriginatorRegistry/no-balance");
@@ -56,6 +65,10 @@ contract OriginatorRegistry is
     function registerOriginator(address originator) external onlyRole(ADMIN_ROLE) {
         isRegisteredOriginator[originator] = true;
         emit OriginatorRegistered(originator, msg.sender);
+    }
+
+    function isRegisteredOriginator(address originator) external view returns (bool) {
+        return isRegisteredOriginator[originator];
     }
     
     function getOriginatorBalance(address originator) external view returns (uint256) {

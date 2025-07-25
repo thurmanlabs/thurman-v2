@@ -180,6 +180,14 @@ interface IPoolManager {
     function mintToTreasury(uint16 poolId, uint256 amount) external;
 
     /**
+     * @dev Transfers sale proceeds to the originator
+     * @param poolId The ID of the pool to transfer the sale proceeds for
+     * @param originator The address of the originator to transfer the sale proceeds to
+     * @param amount The amount of sale proceeds to transfer
+     */
+    function transferSaleProceeds(uint16 poolId, address originator, uint256 amount) external;
+
+    /**
      * @dev Returns boolean telling if the address is the owner of the pool manager
      * @param _address The address to check
      * @return bool True if the address is the owner, false otherwise

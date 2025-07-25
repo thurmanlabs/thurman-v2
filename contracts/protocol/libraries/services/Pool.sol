@@ -89,6 +89,20 @@ library Pool {
         pool.lastDistributionTimestamp = uint40(block.timestamp);
     }
 
+    function transferSaleProceeds(
+        mapping(uint16 => Types.Pool) storage pools,
+        uint16 poolId,
+        address originator,
+        uint256 amount
+    ) internal {
+        Types.Pool storage pool = pools[poolId];
+        IERC7540Vault vault = IERC7540Vault(pool.vault);
+        IOriginatorRegistry originatorRegistry = IOriginatorRegistry(pool.originatorRegistry);
+        Validation.validateTransferSaleProceeds(pool, originator, amount);
+        originatorRegistry.transferSaleProceeds(poolId, originator, amount);
+        vault.transferSaleProceeds(amount, originator);
+    }
+
     // function getNormalizedReturn(Types.Pool memory pool) internal view returns (uint256) {
     //     uint40 timestamp = pool.lastUpdateTimestamp;
     //     uint256 utilizationRate = getUtilizationRate(pool);
@@ -109,7 +123,7 @@ library Pool {
     //     uint256 collateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
     //     uint256 borrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
     //     return borrowBalance.rayDiv(collateralBalance);
-    }
+    // }
 
     function mintToTreasury(
         mapping(uint16 => Types.Pool) storage pools,

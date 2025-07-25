@@ -147,6 +147,10 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         Pool.mintToTreasury(_pools, poolId, amount);
     }
 
+    function transferSaleProceeds(uint16 poolId, address originator, uint256 amount) external onlyOwner {
+        Pool.transferSaleProceeds(_pools, poolId, originator, amount);
+    }
+
     function getPool(uint16 poolId) external view returns (Types.Pool memory) {
         return Pool.getPool(_pools, poolId);
     }

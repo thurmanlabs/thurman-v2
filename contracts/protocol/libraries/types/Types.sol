@@ -133,6 +133,10 @@ library Types {
         uint256 cumulativeDistributionsPerShare;
         /// @dev The last timestamp of a distribution of payments to LPs
         uint40 lastDistributionTimestamp;
+        /// @dev The total principal originated per pool
+        uint256 totalPrincipal;
+        /// @dev The total deposits to the pool
+        uint256 totalDeposits;
     }
 
     struct PoolConfig {

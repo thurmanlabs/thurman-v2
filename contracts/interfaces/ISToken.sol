@@ -45,6 +45,13 @@ interface ISToken is IERC20 {
   ) external;
 
   /**
+   * @notice Transfers the underlying assets to the originator
+   * @param amount The amount of underlying assets to transfer
+   * @param originator The address of the originator
+   */
+  function transferUnderlyingToOriginator(uint256 amount, address originator) external;
+
+  /**
    * @notice Returns the total claimable returns for a user
    * @param user The address of the user
    * @return The total claimable returns
