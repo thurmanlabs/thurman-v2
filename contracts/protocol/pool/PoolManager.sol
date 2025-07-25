@@ -159,10 +159,6 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
         return _poolCount;
     }
 
-    function getNormalizedReturn(uint16 poolId) external view returns (uint256) {
-        return _pools[poolId].getNormalizedReturn();
-    }
-
     function isOwner(address _address) external view returns (bool) {
         return _address == owner();
     }

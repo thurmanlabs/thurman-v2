@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 pragma solidity ^0.8.24;
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
+import {ISToken} from "../../../interfaces/ISToken.sol";
 import {Types} from "../types/Types.sol";
+import {Validation} from "./Validation.sol";
 import {WadRayMath} from "../math/WadRayMath.sol";
 
 library Deposit {
@@ -43,7 +46,7 @@ library Deposit {
     ) internal {
         Types.Pool memory pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
-        uint256 pendingDepositRequest = vault.pendingDepositRequest(receiver);
+        uint256 pendingDepositRequest = vault.pendingDepositRequest(0, receiver);
         Validation.validateFulfillDepositRequest(pool, assets, pendingDepositRequest);
         pool.totalDeposits += assets;
         vault.fulfillDepositRequest(assets, receiver);
@@ -60,7 +63,7 @@ library Deposit {
         address sTokenAddress = vault.getShare();
         ISToken sToken = ISToken(sTokenAddress);
         uint256 currentAssets = IERC20(sToken.asset()).balanceOf(sTokenAddress);
-        uint256 maxMint = vault.userVaultData(owner).maxMint;
+        uint256 maxMint = vault.getUserVaultData(owner).maxMint;
         Validation.validateDeposit(pool, assets, currentAssets, maxMint);
         vault.deposit(assets, owner, owner);
     }
@@ -89,7 +92,7 @@ library Deposit {
         Types.Pool memory pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         uint256 shares = vault.convertToShares(assets);
-        uint256 pendingRedeemRequest = vault.pendingRedeemRequest(receiver);
+        uint256 pendingRedeemRequest = vault.pendingRedeemRequest(0, receiver);
         Validation.validateFulfillRedeemRequest(pool, shares, pendingRedeemRequest);
         vault.fulfillRedeemRequest(shares, receiver);
     }
@@ -103,8 +106,8 @@ library Deposit {
         Types.Pool memory pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         uint256 claimableAmount = vault.claimableRedeemRequest(0, receiver);
-        uint256 pendingRedeemRequest = vault.pendingRedeemRequest(receiver);
-        uint256 maxWithdraw = vault.userVaultData(receiver).maxWithdraw;
+        uint256 pendingRedeemRequest = vault.pendingRedeemRequest(0, receiver);
+        uint256 maxWithdraw = vault.getUserVaultData(receiver).maxWithdraw;
         Validation.validateRedeem(pool, claimableAmount, pendingRedeemRequest, maxWithdraw, assets);
         vault.redeem(assets, msg.sender, receiver);
     }

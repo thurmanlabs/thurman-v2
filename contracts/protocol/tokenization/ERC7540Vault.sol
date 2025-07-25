@@ -10,7 +10,6 @@ import {ILoanManager} from "../../interfaces/ILoanManager.sol";
 import {IERC7540Vault} from "../../interfaces/IERC7540.sol";
 import {ISToken} from "../../interfaces/ISToken.sol";
 import {IDToken} from "../../interfaces/IDToken.sol";
-import {IPool} from "../../interfaces/IPool.sol";
 import {Types} from "../libraries/types/Types.sol";
 import {Validation} from "../libraries/services/Validation.sol";
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
@@ -285,22 +284,16 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         
         for (uint256 i = 0; i < repayments.length; i++) {
             Types.BatchRepaymentData calldata data = repayments[i];
-            Types.Loan storage loan = loans[data.borrower][data.loanId];
-
-            (
-                Types.Loan memory updatedLoan, 
-                uint256 principalPortion, 
-                uint256 interestPortion,
-            ) = ILoanManager(loanManager).processRepayment(
-                    loan,
-                    data.paymentAmount
-                );
+            
+            (uint256 principalPortion, uint256 interestPortion) = _processBatchRepayment(
+                data.borrower,
+                data.loanId,
+                data.paymentAmount
+            );
 
             totalRepayment += data.paymentAmount;
             totalInterestPortion += interestPortion;
             totalPrincipalPortion += principalPortion;
-
-            loans[data.borrower][data.loanId] = updatedLoan;
 
             loanIds[i] = data.loanId;
             borrowers[i] = data.borrower;
@@ -313,6 +306,27 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         IDToken(dToken).burn(originator, totalPrincipalPortion);
 
         emit BatchRepaymentProcessed(originator, loanIds, borrowers, paymentAmounts, interestPortions);
+    }
+
+    function _processBatchRepayment(
+        address borrower,
+        uint256 loanId,
+        uint256 paymentAmount
+    ) internal returns (uint256 principalPortion, uint256 interestPortion) {
+        Types.Loan storage loan = loans[borrower][loanId];
+
+        (
+            Types.Loan memory updatedLoan, 
+            uint256 principal, 
+            uint256 interest,
+        ) = ILoanManager(loanManager).processRepayment(
+                loan,
+                paymentAmount
+            );
+
+        loans[borrower][loanId] = updatedLoan;
+        
+        return (principal, interest);
     }
 
     function transferSaleProceeds(uint256 amount, address originator) external onlyPoolManager {

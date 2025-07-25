@@ -186,7 +186,7 @@ library Validation {
         IOriginatorRegistry originatorRegistry = IOriginatorRegistry(pool.originatorRegistry);
         require(originator != address(0), "Pool/invalid-originator");
         require(amount > 0, "Pool/invalid-amount");
-        require(originatorRegistry.isRegisteredOriginator(originator), "Pool/originator-not-registered");
+        require(originatorRegistry.isRegistered(originator), "Pool/originator-not-registered");
         require(pool.totalPrincipal > 0, "Pool/no-principal");
         require(pool.totalDeposits > 0, "Pool/no-deposits");
         require(pool.totalPrincipal <= pool.totalDeposits, "Pool/principal-exceeds-deposits");

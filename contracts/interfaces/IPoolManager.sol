@@ -208,13 +208,6 @@ interface IPoolManager {
     function getPoolCount() external view returns (uint16);
 
     /**
-     * @dev Returns the normalized return for a given pool
-     * @param poolId The ID of the pool to get the normalized return for
-     * @return normalizedReturn The normalized return for the pool
-     */
-    function getNormalizedReturn(uint16 poolId) external view returns (uint256);
-
-    /**
      * @dev Returns the complete configuration for a given pool
      * @param poolId The ID of the pool to get the configuration for
      * @return config The complete pool configuration

@@ -6,7 +6,6 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {IPoolManager} from "../../interfaces/IPoolManager.sol";
 import {ISToken} from "../../interfaces/ISToken.sol";
 import {IERC7540Vault} from "../../interfaces/IERC7540.sol";
-import {IPool} from "../../interfaces/IPool.sol";
 import {Types} from "../libraries/types/Types.sol";
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
 

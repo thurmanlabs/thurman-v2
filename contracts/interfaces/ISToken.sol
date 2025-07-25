@@ -73,4 +73,10 @@ interface ISToken is IERC20 {
    * @return The user baseline
    */
   function getUserBaseline(address user) external view returns (uint256);
+
+  /**
+   * @notice Returns the underlying asset of the sToken
+   * @return The underlying asset
+   */
+  function asset() external view returns (address);
 }

@@ -14,6 +14,6 @@ interface IOriginatorRegistry {
     function withdraw() external;
     function registerOriginator(address originator) external;
     function getOriginatorBalance(address originator) external view returns (uint256);
-    function isRegisteredOriginator(address originator) external view returns (bool);
+    function isRegistered(address originator) external view returns (bool);
     function transferSaleProceeds(uint16 poolId, address originator, uint256 amount) external;
 }

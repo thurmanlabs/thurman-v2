@@ -3,7 +3,6 @@ pragma solidity ^0.8.24;
 
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {IERC7540Vault} from "../../interfaces/IERC7540.sol";
-import {IPool} from "../../interfaces/IPool.sol";
 import {ILoanManager} from "../../interfaces/ILoanManager.sol";
 import {Types} from "../libraries/types/Types.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";

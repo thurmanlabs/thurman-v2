@@ -67,10 +67,7 @@ contract OriginatorRegistry is
         uint256 entitlement = originatedPrincipal[poolId][originator];
         uint256 alreadyTransferred = saleProceedsTransferred[poolId][originator];
         require(alreadyTransferred + amount <= entitlement, "OriginatorRegistry/exceeds-entitlement");
-
         saleProceedsTransferred[poolId][originator] += amount;
-        IERC20(paymentAsset).transfer(originator, amount);
-
         emit SaleProceedsTransferred(poolId, originator, amount);
     }
     
@@ -79,7 +76,7 @@ contract OriginatorRegistry is
         emit OriginatorRegistered(originator, msg.sender);
     }
 
-    function isRegisteredOriginator(address originator) external view returns (bool) {
+    function isRegistered(address originator) external view returns (bool) {
         return isRegisteredOriginator[originator];
     }
     

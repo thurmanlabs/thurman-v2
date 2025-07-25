@@ -102,27 +102,6 @@ library Pool {
         vault.transferSaleProceeds(amount, originator);
     }
 
-    // function getNormalizedReturn(Types.Pool memory pool) internal view returns (uint256) {
-    //     uint40 timestamp = pool.lastUpdateTimestamp;
-    //     uint256 utilizationRate = getUtilizationRate(pool);
-
-    //     if (timestamp == block.timestamp) {
-    //         return pool.liquidityPremiumIndex;
-    //     }
-
-    //     return (MathUtils.calculateLinearInterest(
-    //         pool.config.liquidityPremiumRate, 
-    //         pool.lastUpdateTimestamp
-    //     ).rayMul(utilizationRate) + WadRayMath.RAY).rayMul(pool.liquidityPremiumIndex);
-    // }
-
-    // function getUtilizationRate(Types.Pool memory pool) internal view returns (uint256) {
-    //     IERC7540Vault vault = IERC7540Vault(pool.vault);
-    //     uint256 collateralBalance = IERC20(vault.asset()).balanceOf(pool.vault);
-    //     uint256 borrowBalance = 0; // Simplified without Aave integration
-    //     return borrowBalance.rayDiv(collateralBalance);
-    // }
-
     function mintToTreasury(
         mapping(uint16 => Types.Pool) storage pools,
         uint16 poolId,
