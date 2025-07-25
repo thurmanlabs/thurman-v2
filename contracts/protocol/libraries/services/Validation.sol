@@ -6,8 +6,6 @@ import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
 import {ISToken} from "../../../interfaces/ISToken.sol";
 import {Types} from "../types/Types.sol";
 import {WadRayMath} from "../math/WadRayMath.sol";
-import {IAToken} from "../../../interfaces/IAToken.sol";
-import {IPool} from "../../../interfaces/IPool.sol";
 import {IOriginatorRegistry} from "../../../interfaces/IOriginatorRegistry.sol";
 
 library Validation {

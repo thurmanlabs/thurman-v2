@@ -16,12 +16,10 @@ import {Validation} from "../libraries/services/Validation.sol";
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
 import {MathUtils} from "../libraries/math/MathUtils.sol";
 import {LoanMath} from "../libraries/math/LoanMath.sol";
-import {InterestRate} from "../libraries/services/InterestRate.sol";
 
 contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     using WadRayMath for uint256;
     using SafeCast for uint256;
-    using InterestRate for Types.Loan;
 
     modifier onlyPoolManager() {
         require(msg.sender == poolManager, "ERC7540Vault/only-pool-manager");
@@ -147,7 +145,6 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         uint256 userClaimableAssets = shares.rayDiv(cumulativeDistributionsPerShare - userBaseline);
         
         userVaultData[receiver].maxWithdraw = userVaultData[receiver].maxWithdraw + userClaimableAssets.toUint128();
-        uint128 newPendingRedeemRequest = userVaultData[receiver].pendingRedeemRequest - shares.toUint128();
         userVaultData[receiver].pendingRedeemRequest = 
             userVaultData[receiver].pendingRedeemRequest > shares ? userVaultData[receiver].pendingRedeemRequest - shares.toUint128() : 0;
         
@@ -259,9 +256,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
             uint256 interestPortion,
         ) = ILoanManager(loanManager).processRepayment(
                 loan,
-                address(this),
-                assets,
-                onBehalfOf
+                assets
         );
 
         loans[onBehalfOf][loanId] = updatedLoan;
@@ -279,9 +274,6 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         Types.BatchRepaymentData[] calldata repayments,
         address originator
     ) external onlyPoolManager {
-        require(repayments.length > 0, "ERC7540Vault/empty-batch");
-        require(repayments.length <= 100, "ERC7540Vault/batch-too-large"); // Prevent gas limit issues
-
         uint256[] memory loanIds = new uint256[](repayments.length);
         address[] memory borrowers = new address[](repayments.length);
         uint256[] memory paymentAmounts = new uint256[](repayments.length);
@@ -293,17 +285,16 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         
         for (uint256 i = 0; i < repayments.length; i++) {
             Types.BatchRepaymentData calldata data = repayments[i];
+            Types.Loan storage loan = loans[data.borrower][data.loanId];
 
             (
                 Types.Loan memory updatedLoan, 
                 uint256 principalPortion, 
                 uint256 interestPortion,
             ) = ILoanManager(loanManager).processRepayment(
-                    data.loan,
-                address(this),
-                data.paymentAmount,
-                data.borrower
-            );
+                    loan,
+                    data.paymentAmount
+                );
 
             totalRepayment += data.paymentAmount;
             totalInterestPortion += interestPortion;

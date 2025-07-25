@@ -64,12 +64,11 @@ contract SToken is ISToken, ERC20Upgradeable {
         return (super.balanceOf(onBehalfOf) == 0);
   }
 
-  function mintToTreasury(uint256 amount, uint256 index) external onlyAuthorized {
-    uint256 amountScaled = amount.rayDiv(index);
-    require(amountScaled > 0, "SToken/invalid-mint-amount");
-    _mint(treasury, amountScaled.toUint128());
-    emit Transfer(address(0), treasury, amountScaled);
-    emit Mint(msg.sender, treasury, amountScaled);
+  function mintToTreasury(uint256 amount) external onlyAuthorized {
+    _mint(treasury, amount.toUint128());
+    emit Transfer(address(0), treasury, amount);
+    emit Mint(msg.sender, treasury, amount);
+    emit MintedToTreasury(poolId, amount);
   }
 
   function burn(

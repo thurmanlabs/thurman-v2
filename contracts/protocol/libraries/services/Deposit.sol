@@ -2,11 +2,8 @@
 pragma solidity ^0.8.24;
 
 import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
-import {IAToken} from "../../../interfaces/IAToken.sol";
-import {IPool} from "../../../interfaces/IPool.sol";
 import {Types} from "../types/Types.sol";
 import {WadRayMath} from "../math/WadRayMath.sol";
-import {IVariableDebtToken} from "../../../interfaces/IVariableDebtToken.sol";
 
 library Deposit {
     using WadRayMath for uint256;

@@ -28,9 +28,7 @@ interface ILoanManager {
      * @dev Processes a repayment.
      *
      * @param loan The loan to process.
-     * @param vault The vault of the loan.
      * @param assets The amount of assets to repay.
-     * @param onBehalfOf The address of the on behalf of.
      * @return updatedLoan The updated loan.
      * @return principalPortion The principal portion.
      * @return interestPortion The interest portion.
@@ -38,9 +36,7 @@ interface ILoanManager {
      */
     function processRepayment(
         Types.Loan memory loan,
-        address vault,
-        uint256 assets,
-        address onBehalfOf
+        uint256 assets
     ) external returns (
         Types.Loan memory updatedLoan, 
         uint256 principalPortion, 

@@ -295,6 +295,14 @@ interface IERC7540Vault is IERC4626 {
     ) external;
 
     /**
+     * @dev Transfers the sale proceeds to the originator.
+     *
+     * @param amount the amount of assets to transfer
+     * @param originator the address of the originator
+     */
+    function transferSaleProceeds(uint256 amount, address originator) external;
+
+    /**
      * @dev Returns the address of the share token.
      *
      * @return share the address of the share token

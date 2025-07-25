@@ -14,6 +14,11 @@ interface ISToken is IERC20 {
     address indexed receiverOfUnderlying,
     uint256 value
   );
+
+  event MintedToTreasury(
+    uint256 indexed poolId,
+    uint256 amount
+  );
   
     /**
    * @notice Mints `amount` sTokens to `user` based on underlying aToken logic
@@ -28,7 +33,11 @@ interface ISToken is IERC20 {
     uint256 amount
   ) external returns (bool);
 
-  function mintToTreasury(uint256 amount, uint256 index) external;
+  /**
+   * @notice Mints `amount` sTokens to the treasury
+   * @param amount The amount of tokens getting minted
+   */
+  function mintToTreasury(uint256 amount) external;
 
   /**
    * @notice Burns sTokens from `user` and sends the equivalent amount of underlying to `receiverOfUnderlying`

@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 pragma solidity ^0.8.24;
 
-import {Types} from "../types/Types.sol";
-import {IVariableDebtToken} from "../../../interfaces/IVariableDebtToken.sol";
-import {IAToken} from "../../../interfaces/IAToken.sol";
-import {IPool} from "../../../interfaces/IPool.sol";
 import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
 import {ISToken} from "../../../interfaces/ISToken.sol";
+import {IOriginatorRegistry} from "../../../interfaces/IOriginatorRegistry.sol";
+import {Types} from "../types/Types.sol";
+import {Validation} from "./Validation.sol";
 import {WadRayMath} from "../math/WadRayMath.sol";
 import {MathUtils} from "../math/MathUtils.sol";
 
@@ -26,7 +25,7 @@ library Pool {
     ) internal returns (bool) {
         pools[poolCount].vault = vault;
         pools[poolCount].originatorRegistry = originatorRegistry;
-        pools[poolCount].config.marginFee = marginFee;
+        pools[poolCount].marginFee = marginFee;
         
         // Initialize new operational control fields with default values
         pools[poolCount].config.depositsEnabled = false;
@@ -119,9 +118,8 @@ library Pool {
 
     // function getUtilizationRate(Types.Pool memory pool) internal view returns (uint256) {
     //     IERC7540Vault vault = IERC7540Vault(pool.vault);
-    //     Types.ReserveData memory reserveData = IPool(pool.aavePool).getReserveData(vault.asset());
-    //     uint256 collateralBalance = IAToken(reserveData.aTokenAddress).balanceOf(pool.vault);
-    //     uint256 borrowBalance = IVariableDebtToken(reserveData.variableDebtTokenAddress).balanceOf(pool.vault);
+    //     uint256 collateralBalance = IERC20(vault.asset()).balanceOf(pool.vault);
+    //     uint256 borrowBalance = 0; // Simplified without Aave integration
     //     return borrowBalance.rayDiv(collateralBalance);
     // }
 
@@ -132,14 +130,13 @@ library Pool {
     ) internal {
         Types.Pool memory pool = getPool(pools, poolId);
         IERC7540Vault vault = IERC7540Vault(pool.vault);
-        uint256 index = IPool(pool.aavePool).getReserveData(vault.asset()).liquidityIndex;
-        uint256 amountScaled = amount.rayDiv(index);
-        require(amountScaled > 0, "Pool/invalid-mint-amount");
+        ISToken sToken = ISToken(vault.getShare());
+
+        require(amount > 0, "Pool/invalid-mint-amount");
         
         if (pool.accruedToTreasury != 0) {
             pool.accruedToTreasury = 0;
-            address sToken = IERC7540Vault(pool.vault).getShare();
-            ISToken(sToken).mintToTreasury(pool.accruedToTreasury, index);   
+            sToken.mintToTreasury(pool.accruedToTreasury);   
             
             emit MintedToTreasury(poolId, pool.accruedToTreasury);
         }

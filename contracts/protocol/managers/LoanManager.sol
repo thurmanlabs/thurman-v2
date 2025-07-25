@@ -59,9 +59,7 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
 
     function processRepayment(
         Types.Loan memory loan,
-        address vault,
-        uint256 assets,
-        address onBehalfOf
+        uint256 assets
     ) external view returns (
         Types.Loan memory updatedLoan,
         uint256 principalPortion,
@@ -70,8 +68,7 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
     ) {
         require(loan.status == Types.Status.Active, "LoanManager/loan-not-active");
 
-        address dTokenAddress = IERC7540Vault(vault).getDToken();
-        uint256 remainingBalance = IERC20(dTokenAddress).balanceOf(onBehalfOf);
+        uint256 remainingBalance = loan.principal;
         require(remainingBalance > 0, "LoanManager/loan-fully-repaid");
 
         uint256 currentTimestamp = block.timestamp;
