@@ -29,6 +29,7 @@ interface ILoanManager {
      *
      * @param loan The loan to process.
      * @param assets The amount of assets to repay.
+     * @param assetDecimals The decimals of the underlying asset.
      * @return updatedLoan The updated loan.
      * @return principalPortion The principal portion.
      * @return interestPortion The interest portion.
@@ -36,7 +37,8 @@ interface ILoanManager {
      */
     function processRepayment(
         Types.Loan memory loan,
-        uint256 assets
+        uint256 assets,
+        uint8 assetDecimals
     ) external returns (
         Types.Loan memory updatedLoan, 
         uint256 principalPortion, 

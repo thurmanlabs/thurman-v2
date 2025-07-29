@@ -288,11 +288,12 @@ interface IERC7540Vault is IERC4626 {
      *
      * @param repayments array of repayment data containing paymentAmount, borrower, and loanId
      * @param originator the address of the originator
+     * @return totalInterestPaid the total interest paid across all repayments
      */
     function batchRepayLoans(
         Types.BatchRepaymentData[] calldata repayments,
         address originator
-    ) external;
+    ) external returns (uint256 totalInterestPaid);
 
     /**
      * @dev Transfers the sale proceeds to the originator.

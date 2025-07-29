@@ -75,12 +75,11 @@ contract SToken is ISToken, ERC20Upgradeable {
     address receiverOfUnderlying,
     uint256 amount
   ) external onlyAuthorized {
-    // TODO: use cumulative distributions per share to calculate the amount to burn
     require(amount > 0, "SToken/invalid-burn-amount");
     require(super.balanceOf(from) >= amount, "SToken/insufficient-balance");
     Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
-    IERC7540Vault vault = IERC7540Vault(pool.vault);
 
+    uint256 oldBaseline = userDistributionBaselines[from];
     userDistributionBaselines[from] = pool.cumulativeDistributionsPerShare;
 
     _burn(from, amount.toUint128());
@@ -88,15 +87,17 @@ contract SToken is ISToken, ERC20Upgradeable {
     emit Transfer(from, address(0), amount);
     emit Burn(from, receiverOfUnderlying, amount);
 
-    // Transfer underlying assets from vault to receiver
+    // Calculate total underlying assets to transfer (base + interest)
+    uint256 baseAmount = amount;
+    uint256 interestAmount = amount.rayMul(pool.cumulativeDistributionsPerShare - oldBaseline);
+    uint256 totalAmount = baseAmount + interestAmount;
     
-    IERC20(asset()).transferFrom(address(vault), receiverOfUnderlying, amount);
+    // Transfer underlying assets from SToken to receiver
+    IERC20(asset()).transfer(receiverOfUnderlying, totalAmount);
   }
 
   function transferUnderlyingToOriginator(uint256 amount, address originator) external onlyAuthorized {
-    Types.Pool memory pool = IPoolManager(poolManager).getPool(poolId);
-    IERC7540Vault vault = IERC7540Vault(pool.vault);
-    IERC20(asset()).transferFrom(address(vault), originator, amount);
+    IERC20(asset()).transfer(originator, amount);
   }
 
   function totalClaimableReturns(address user) public view returns (uint256) {

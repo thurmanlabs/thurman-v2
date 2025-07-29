@@ -10,6 +10,7 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {LoanMath} from "../libraries/math/LoanMath.sol";
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import "hardhat/console.sol";
 
 contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
     using WadRayMath for uint256;
@@ -58,7 +59,8 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
 
     function processRepayment(
         Types.Loan memory loan,
-        uint256 assets
+        uint256 assets,
+        uint8 assetDecimals
     ) external view returns (
         Types.Loan memory updatedLoan,
         uint256 principalPortion,
@@ -72,7 +74,7 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
 
         uint256 currentTimestamp = block.timestamp;
 
-        uint256 totalInterestDue = LoanMath.calculateMonthlyInterest(loan, remainingBalance);
+        uint256 totalInterestDue = LoanMath.calculateMonthlyInterest(loan, remainingBalance, assetDecimals);
 
         // Interest always gets paid first
         uint256 scheduledPayment = loan.remainingMonthlyPayment;
@@ -88,7 +90,9 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
             assets = interestPortion + principalPortion;
         }
 
-        // 3. Update loan state
+        // Update loan state
+        loan.principal = uint128(remainingBalance - principalPortion);
+        
         if (assets >= scheduledPayment) {
             // Full or excess payment - reset monthly payment and advance next payment date
             loan.remainingMonthlyPayment = 0;
@@ -103,8 +107,8 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
         
         loan.lastUpdateTimestamp = uint40(currentTimestamp);
         
-        // 6. Check if loan is fully paid
-        if (remainingBalance == principalPortion) {
+        // Check if loan is fully paid
+        if (loan.principal == 0) {
             loan.status = Types.Status.Closed;
         }
         

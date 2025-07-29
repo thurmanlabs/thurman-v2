@@ -98,70 +98,60 @@ library WadRayMath {
   /**
    * @dev Raised to the power of n
    * @param x ray
-   * @param n uint256
-   * @return z = x^n
-   */
-  function rayPow(uint256 x, uint256 n) internal pure returns (uint256 z) {
-    // Handle edge cases first
-    if (n == 0) return RAY;
-    if (n == 1) return x;
-    if (x == 0) return 0;
-    if (x == RAY) return RAY;
-
-    z = RAY;
-    uint256 baseValue = x;
-
-    while (n > 0) {
-        if (n % 2 != 0) {
-            uint256 newZ = rayMul(z, baseValue);
-            if (newZ < z) {
-                revert("WadRayMath: multiplication overflow");
-            }
-            z = newZ;
-        }
-
-        if (n > 1) {
-            uint256 newBase = rayMul(baseValue, baseValue);
-            if (newBase < baseValue) {
-                revert("WadRayMath: base overflow");
-            }
-            baseValue = newBase;
-        }
-
-        n = n / 2;
-    }
-  }
-
-  /**
-   * @dev Casts ray down to wad
-   * @dev assembly optimized for improved gas savings, see https://twitter.com/transmissions11/status/1451131036377571328
-   * @param a Ray
-   * @return b = a converted to wad, rounded half up to the nearest wad
+   * @param n power
+   * @return z = x^n, in ray
    **/
-  function rayToWad(uint256 a) internal pure returns (uint256 b) {
-    assembly {
-      b := div(a, WAD_RAY_RATIO)
-      let remainder := mod(a, WAD_RAY_RATIO)
-      if iszero(lt(remainder, div(WAD_RAY_RATIO, 2))) {
-        b := add(b, 1)
+  function rayPow(uint256 x, uint256 n) internal pure returns (uint256 z) {
+    z = n % 2 != 0 ? x : RAY;
+
+    for (n /= 2; n != 0; n /= 2) {
+      x = rayMul(x, x);
+
+      if (n % 2 != 0) {
+        z = rayMul(z, x);
       }
     }
   }
 
   /**
-   * @dev Converts wad up to ray
-   * @dev assembly optimized for improved gas savings, see https://twitter.com/transmissions11/status/1451131036377571328
+   * @dev Converts a wad to a ray
    * @param a Wad
    * @return b = a converted in ray
    **/
   function wadToRay(uint256 a) internal pure returns (uint256 b) {
-    // to avoid overflow, b/WAD_RAY_RATIO == a
-    assembly {
-      b := mul(a, WAD_RAY_RATIO)
+    b = a * WAD_RAY_RATIO;
+  }
 
-      if iszero(eq(div(b, WAD_RAY_RATIO), a)) {
-        revert(0, 0)
-      }
-    }
+  /**
+   * @dev Converts a ray to a wad
+   * @param a Ray
+   * @return b = a converted in wad
+   **/
+  function rayToWad(uint256 a) internal pure returns (uint256 b) {
+    b = a / WAD_RAY_RATIO;
+  }
+
+  /**
+   * @dev Converts an amount from token decimals to WAD (18 decimals)
+   * @param amount Amount in token decimals
+   * @param decimals Token decimals
+   * @return amount in WAD
+   **/
+  function toWad(uint256 amount, uint8 decimals) internal pure returns (uint256) {
+    if (decimals == 18) return amount;
+    require(decimals < 18, "WadRayMath: too many decimals");
+    return amount * (10 ** (18 - decimals));
+  }
+
+  /**
+   * @dev Converts an amount from WAD (18 decimals) to token decimals
+   * @param wadAmount Amount in WAD
+   * @param decimals Token decimals
+   * @return amount in token decimals
+   **/
+  function fromWad(uint256 wadAmount, uint8 decimals) internal pure returns (uint256) {
+    if (decimals == 18) return wadAmount;
+    require(decimals < 18, "WadRayMath: too many decimals");
+    return wadAmount / (10 ** (18 - decimals));
   }
 }

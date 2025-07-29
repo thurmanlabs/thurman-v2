@@ -44,7 +44,7 @@ library Deposit {
         uint256 assets,
         address receiver
     ) internal {
-        Types.Pool memory pool = pools[poolId];
+        Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         uint256 pendingDepositRequest = vault.pendingDepositRequest(0, receiver);
         Validation.validateFulfillDepositRequest(pool, assets, pendingDepositRequest);

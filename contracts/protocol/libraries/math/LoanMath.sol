@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {WadRayMath} from "./WadRayMath.sol";
+import {MathUtils} from "./MathUtils.sol";
 import {Types} from "../types/Types.sol";
 import "hardhat/console.sol";
 
@@ -21,8 +22,21 @@ library LoanMath {
 
     function calculateMonthlyInterest(
         Types.Loan memory loan,
-        uint256 remainingBalance
+        uint256 remainingBalance,
+        uint8 assetDecimals
     ) internal pure returns (uint256) {
-        return remainingBalance.rayMul(loan.interestRate).rayDiv(12);
+        // Convert remainingBalance to WAD (18 decimals) for calculation
+        uint256 balanceWad = WadRayMath.toWad(remainingBalance, assetDecimals);
+        
+        // Calculate monthly rate in WAD format
+        uint256 monthlyRate = loan.interestRate / MathUtils.MONTHS_PER_YEAR;
+        
+        // Calculate interest in WAD using wadMul
+        uint256 interestWad = WadRayMath.wadMul(balanceWad, monthlyRate);
+        
+        // Convert interest from WAD to token decimals
+        uint256 interest = WadRayMath.fromWad(interestWad, assetDecimals);
+        
+        return interest;
     }
 } 

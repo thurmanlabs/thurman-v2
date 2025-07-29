@@ -5,6 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IPoolManager} from "../../interfaces/IPoolManager.sol";
 import {ILoanManager} from "../../interfaces/ILoanManager.sol";
 import {IERC7540Vault} from "../../interfaces/IERC7540.sol";
@@ -35,6 +36,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     address public loanManager;
     address public share;
     address public dToken;
+    uint8 public assetDecimals;
     mapping(address => Types.UserVaultData) public userVaultData;
     mapping(address => Types.Loan[]) public loans;
     
@@ -62,6 +64,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         poolManager = _poolManager;
         poolId = IPoolManager(_poolManager).getPoolCount();
         loanManager = _loanManager;
+        assetDecimals = IERC20Metadata(_asset).decimals();
     }
     
     // --- ERC-7540 methods ---
@@ -164,12 +167,9 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         userVaultData[owner].maxWithdraw = 
             userVaultData[owner].maxWithdraw > assets ? userVaultData[owner].maxWithdraw - assets.toUint128() : 0;
 
-        uint256 cumulativeDistributionsPerShare = pool.cumulativeDistributionsPerShare;
-        uint256 userBaseline = ISToken(share).getUserBaseline(owner);
-        uint256 burnAmount = shares.rayDiv(cumulativeDistributionsPerShare - userBaseline);
-        ISToken(share).burn(address(this), owner, burnAmount);
+        ISToken(share).burn(address(this), owner, shares);
         
-        emit Withdraw(address(this), controller, owner, assets, burnAmount);
+        emit Withdraw(address(this), controller, owner, assets, shares);
         return shares;
     }
 
@@ -255,14 +255,16 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
             uint256 interestPortion,
         ) = ILoanManager(loanManager).processRepayment(
                 loan,
-                assets
+                assets,
+                assetDecimals
         );
 
         loans[onBehalfOf][loanId] = updatedLoan;
 
-        IERC20(asset()).transferFrom(caller, address(this), assets);
+        uint256 totalPayment = principalPortion + interestPortion;
+        IERC20(asset()).transferFrom(caller, address(this), totalPayment);
         // Transfer the entire payment to sToken instead of Aave operations
-        IERC20(asset()).transfer(share, assets);
+        IERC20(asset()).transfer(share, totalPayment);
         IDToken(dToken).burn(onBehalfOf, principalPortion);
 
         emit LoanRepaid(loanId, onBehalfOf, principalPortion, interestPortion);
@@ -272,12 +274,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     function batchRepayLoans(
         Types.BatchRepaymentData[] calldata repayments,
         address originator
-    ) external onlyPoolManager {
-        uint256[] memory loanIds = new uint256[](repayments.length);
-        address[] memory borrowers = new address[](repayments.length);
-        uint256[] memory paymentAmounts = new uint256[](repayments.length);
-        uint256[] memory interestPortions = new uint256[](repayments.length);
-        
+    ) external onlyPoolManager returns (uint256 totalInterestPaid) {
         uint256 totalRepayment = 0;
         uint256 totalInterestPortion = 0;
         uint256 totalPrincipalPortion = 0;
@@ -294,18 +291,16 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
             totalRepayment += data.paymentAmount;
             totalInterestPortion += interestPortion;
             totalPrincipalPortion += principalPortion;
-
-            loanIds[i] = data.loanId;
-            borrowers[i] = data.borrower;
-            paymentAmounts[i] = data.paymentAmount;
-            interestPortions[i] = interestPortion;
         }
 
-        IERC20(asset()).transferFrom(originator, address(this), totalRepayment);
-        IERC20(asset()).transfer(share, totalRepayment);
+        uint256 totalAssets = totalInterestPortion + totalPrincipalPortion;
+        IERC20(asset()).transferFrom(originator, address(this), totalAssets);
+        IERC20(asset()).transfer(share, totalAssets);
         IDToken(dToken).burn(originator, totalPrincipalPortion);
 
-        emit BatchRepaymentProcessed(originator, loanIds, borrowers, paymentAmounts, interestPortions);
+        emit BatchRepaymentProcessed(originator, new uint256[](0), new address[](0), new uint256[](0), new uint256[](0));
+        
+        return totalInterestPortion;
     }
 
     function _processBatchRepayment(
@@ -314,14 +309,17 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         uint256 paymentAmount
     ) internal returns (uint256 principalPortion, uint256 interestPortion) {
         Types.Loan storage loan = loans[borrower][loanId];
+        require(loan.status == Types.Status.Active, "ERC7540Vault/loan-not-active");
 
         (
             Types.Loan memory updatedLoan, 
             uint256 principal, 
             uint256 interest,
+            uint256 remainingInterest
         ) = ILoanManager(loanManager).processRepayment(
                 loan,
-                paymentAmount
+                paymentAmount,
+                assetDecimals
             );
 
         loans[borrower][loanId] = updatedLoan;

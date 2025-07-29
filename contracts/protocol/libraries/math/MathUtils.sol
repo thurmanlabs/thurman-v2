@@ -7,6 +7,7 @@ library MathUtils {
     using WadRayMath for uint256;
       // Constants
     uint256 internal constant SECONDS_PER_YEAR = 365 days;
+    uint256 internal constant MONTHS_PER_YEAR = 12;
     uint256 internal constant SECONDS_PER_DAY = 86400;
     uint256 internal constant DAYS_PER_YEAR = 365;
     uint256 internal constant BASIS_POINTS = 10000;

@@ -6,6 +6,7 @@ import "@nomicfoundation/hardhat-ethers";
 
 dotenv.config();
 
+const BASE_MAINNET_RPC_URL = process.env.BASE_MAINNET_RPC_URL || "https://mainnet.base.org";
 const POLYGON_MAINNET_RPC_URL = process.env.POLYGON_MAINNET_RPC_URL || "";
 const POLYGON_AMOY_RPC_URL = process.env.POLYGON_AMOY_RPC_URL || "";
 const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY || "";
@@ -28,8 +29,8 @@ const config: HardhatUserConfig = {
     hardhat: {
       chainId: 31337,
       forking: {
-        url: POLYGON_MAINNET_RPC_URL,
-        blockNumber: 67312309
+        url: BASE_MAINNET_RPC_URL,
+        blockNumber: 33484396  // Updated to current block
       },
       loggingEnabled: false,
       allowUnlimitedContractSize: true
@@ -44,6 +45,16 @@ const config: HardhatUserConfig = {
       accounts: [PRIVATE_KEY],
       chainId: 421613,
     },
+    baseSepolia: {
+      url: process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
+      accounts: [process.env.PRIVATE_KEY || ""],
+      chainId: 84532,
+    },
+    base: {
+      url: process.env.BASE_MAINNET_RPC_URL || "https://mainnet.base.org", 
+      accounts: [process.env.MAINNET_PRIVATE_KEY || ""],
+      chainId: 8453,
+    },
   },
   gasReporter: {
     enabled: REPORT_GAS,
@@ -55,7 +66,27 @@ const config: HardhatUserConfig = {
     apiKey: {
       polygon: POLYGONSCAN_API_KEY,
       polygonAmoy: POLYGONSCAN_API_KEY,
+      baseSepolia: process.env.ETHERSCAN_API_KEY || "",
+      base: process.env.ETHERSCAN_API_KEY || "",
     },
+    customChains: [
+      {
+        network: "baseSepolia",
+        chainId: 84532,
+        urls: {
+          apiURL: "https://api-sepolia.basescan.org/api",
+          browserURL: "https://sepolia.basescan.org"
+        }
+      },
+      {
+        network: "base", 
+        chainId: 8453,
+        urls: {
+          apiURL: "https://api.basescan.org/api",
+          browserURL: "https://basescan.org"
+        }
+      }
+    ]
   }
 };
 

@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {IERC7540Vault} from "../../../interfaces/IERC7540.sol";
 import {IOriginatorRegistry} from "../../../interfaces/IOriginatorRegistry.sol";
+import {ISToken} from "../../../interfaces/ISToken.sol";
 import {WadRayMath} from "../math/WadRayMath.sol";
 import {Types} from "../types/Types.sol";
 import {Validation} from "./Validation.sol";
@@ -90,6 +91,22 @@ library Loan {
         Types.Pool storage pool = pools[poolId];
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         Validation.validateBatchRepayLoan(pool, originator, msg.sender, repayments);
-        vault.batchRepayLoans(repayments, originator);
+        
+        // Get total interest paid from vault
+        uint256 totalInterestPaid = vault.batchRepayLoans(repayments, originator);
+        
+        // Update pool state with total interest
+        if (totalInterestPaid > 0) {
+            uint256 accruedToTreasury = totalInterestPaid.rayMul(pool.marginFee);
+            pool.accruedToTreasury += accruedToTreasury;
+            
+            // Update cumulative distributions per share
+            ISToken sToken = ISToken(IERC7540Vault(pool.vault).getShare());
+            uint256 currentTotalShares = sToken.totalSupply();
+            if (currentTotalShares > 0) {
+                pool.cumulativeDistributionsPerShare += totalInterestPaid.rayDiv(currentTotalShares);
+                pool.lastDistributionTimestamp = uint40(block.timestamp);
+            }
+        }
     }
 }
