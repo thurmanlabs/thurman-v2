@@ -125,9 +125,89 @@ The test suite has been streamlined for efficiency:
 - **`basic-setup.test.ts`**: Simple deployment verification
 - **`helpers/`**: Test utilities and setup functions
 
+### Deployment Configuration
+
+Network-specific settings are managed in `config/deploy-config.ts`:
+
+- **Token Addresses**: USDC, WETH for each network
+- **Pool Settings**: Margin fees, deposit caps, operational controls
+- **Token Names**: Customizable names and symbols for sToken and dToken
+- **Roles**: Treasury and admin addresses
+- **Verification**: Automatic verification settings per network
+
+**Configurable Parameters:**
+- `marginFee`: Pool margin fee (e.g., "0.02" for 2%)
+- `depositCap`: Maximum total pool deposits
+- `maxDepositAmount`: Maximum single deposit amount
+- `minDepositAmount`: Minimum single deposit amount
+- `depositsEnabled`: Enable/disable deposits
+- `withdrawalsEnabled`: Enable/disable withdrawals
+- `borrowingEnabled`: Enable/disable loan creation
+- `isPaused`: Emergency pause all operations
+
+**Supported Networks:**
+- `hardhat` / `localhost`: Development with mock tokens
+- `baseSepolia`: Testnet with real USDC
+- `base`: Mainnet with production settings
+- `mainnet`: Ethereum mainnet (when configured)
+
+### Deployment
+
+The protocol supports deployment to multiple networks with configuration-based settings.
+
+**Interactive Deployment (Recommended):**
+```bash
+npm run deploy
+```
+This will show available networks and prompt for selection.
+
+**Direct Network Deployment:**
+```bash
+# Testnet
+npm run deploy baseSepolia
+
+# Mainnet
+npm run deploy base
+npm run deploy mainnet
+
+# Development
+npm run deploy hardhat
+```
+
+**Alternative Direct Commands:**
+```bash
+# Using hardhat directly
+npx hardhat run scripts/deploy.ts baseSepolia --network baseSepolia
+npx hardhat run scripts/deploy.ts base --network base
+npx hardhat run scripts/deploy.ts mainnet --network mainnet
+```
+
+
+
 ### Contract Verification
 
-Verify contracts on Basescan:
+The deployment script automatically verifies contracts on testnet and mainnet networks only. Verification is disabled for development networks (hardhat, localhost).
+
+**Automatic Verification:**
+```bash
+npm run deploy baseSepolia  # ✅ Verification enabled (testnet)
+npm run deploy base         # ✅ Verification enabled (mainnet)
+npm run deploy hardhat      # ⏭️  Verification disabled (development)
+```
+
+**Verification Behavior:**
+- **Testnet/Mainnet**: Automatic verification with configurable delays
+- **Development Networks**: Verification skipped (no block explorer)
+- **Configurable Delays**: Different wait times per network for deployment indexing
+
+**Manual Verification of Deployed Contracts:**
+1. Update `scripts/verify-deployed.ts` with your contract addresses and constructor arguments
+2. Run the verification script:
+```bash
+npx hardhat run scripts/verify-deployed.ts --network base
+```
+
+**Individual Contract Verification:**
 ```bash
 npx hardhat verify --network base DEPLOYED_CONTRACT_ADDRESS constructor_argument_1
 ```
