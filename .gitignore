@@ -1,27 +1,52 @@
+# Dependencies
 node_modules
+
+# Environment variables
 .env
+
+# Testing
 coverage
 coverage.json
+
+# TypeScript
 typechain
 typechain-types
 
-#Hardhat files
+# Hardhat
 cache
 artifacts
 
+# Deployment files
+deployments/
 
-node_modules
-.env
-coverage
-coverage.json
-typechain
-typechain-types
+# Documentation
+docs/
+abi/
 
-#Hardhat files
-cache
-artifacts
-
+# OS files
 .DS_Store
-abi
-docs
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
 

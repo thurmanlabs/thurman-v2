@@ -40,8 +40,8 @@ export const deployConfigs: Record<string, DeployConfig> = {
   hardhat: {
     network: "hardhat",
     tokens: {
-      USDC: "0x0000000000000000000000000000000000000000", // Mock address
-      WETH: "0x0000000000000000000000000000000000000000"
+      USDC: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // Base mainnet USDC (since hardhat forks Base)
+      WETH: "0x4200000000000000000000000000000000000006"  // Base mainnet WETH
     },
     decimals: {
       USDC: 6,
@@ -75,8 +75,8 @@ export const deployConfigs: Record<string, DeployConfig> = {
   localhost: {
     network: "localhost",
     tokens: {
-      USDC: "0x0000000000000000000000000000000000000000",
-      WETH: "0x0000000000000000000000000000000000000000"
+      USDC: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // Base mainnet USDC (for localhost testing)
+      WETH: "0x4200000000000000000000000000000000000006"  // Base mainnet WETH
     },
     decimals: {
       USDC: 6,

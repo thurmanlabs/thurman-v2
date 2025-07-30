@@ -1,5 +1,6 @@
 import { ethers, upgrades } from "hardhat";
-import { verify, verifyProxy } from "./verify";
+import { HardhatRuntimeEnvironment } from "hardhat/types";
+import { verifyProxy } from "./verify";
 import { 
   getDeployConfig, 
   isDevelopmentChain, 
@@ -11,17 +12,20 @@ import {
 async function main() {
   const [deployer] = await ethers.getSigners();
   
-  // Get network from command line arguments or environment
-  const network = process.argv[2] || process.env.HARDHAT_NETWORK || "hardhat";
+  // Get network from Hardhat Runtime Environment
+  const hre: HardhatRuntimeEnvironment = require("hardhat");
+  const { network } = hre;
+  const networkName = network.name;
   
   console.log("🚀 Starting Thurman Protocol Deployment");
   console.log("========================================");
-  console.log(`Network: ${network}`);
+  console.log(`Network: ${networkName}`);
+  console.log(`ChainId: ${network.config.chainId}`);
   console.log(`Deployer: ${deployer.address}`);
   console.log(`Balance: ${ethers.formatEther(await ethers.provider.getBalance(deployer.address))} ETH`);
   
   // Get network-specific configuration
-  const config = getDeployConfig(network);
+  const config = getDeployConfig(networkName);
   console.log(`\n📋 Using configuration for ${config.network}`);
   
   // Set deployer addresses for roles
@@ -29,13 +33,13 @@ async function main() {
   const adminAddress = config.roles.admin || deployer.address;
   
   // Validate network type and verification eligibility
-  if (isDevelopmentChain(network)) {
+  if (isDevelopmentChain(networkName)) {
     console.log("🔧 Development chain detected - using mock tokens");
     console.log("⏭️  Contract verification disabled (development network)");
-  } else if (isTestnet(network)) {
+  } else if (isTestnet(networkName)) {
     console.log("🧪 Testnet detected - using test tokens");
     console.log("🔍 Contract verification enabled (testnet)");
-  } else if (isMainnet(network)) {
+  } else if (isMainnet(networkName)) {
     console.log("🌐 Mainnet detected - using production tokens");
     console.log("🔍 Contract verification enabled (mainnet)");
     console.log("⚠️  WARNING: This is a mainnet deployment!");
@@ -140,7 +144,7 @@ async function main() {
   console.log(`   ✅ ACCRUER_ROLE granted to PoolManager`);
 
   // Check if we should verify contracts based on network type
-  const shouldVerify = shouldVerifyContracts(network);
+  const shouldVerify = shouldVerifyContracts(networkName);
   
   if (shouldVerify && config.verification.enabled) {
     console.log(`\n⏳ Waiting ${config.verification.delay}ms for deployment indexing...`);
@@ -201,6 +205,7 @@ async function main() {
   // Generate deployment summary
   const deployment = {
     network: config.network,
+    chainId: network.config.chainId,
     timestamp: new Date().toISOString(),
     deployer: deployer.address,
     config: {
@@ -227,7 +232,7 @@ async function main() {
     },
     verification: {
       attempted: shouldVerify && config.verification.enabled,
-      networkType: isDevelopmentChain(network) ? "development" : isTestnet(network) ? "testnet" : "mainnet"
+      networkType: isDevelopmentChain(networkName) ? "development" : isTestnet(networkName) ? "testnet" : "mainnet"
     }
   };
 
@@ -237,7 +242,7 @@ async function main() {
   
   // Save deployment info to file
   const fs = require('fs');
-  const deploymentFile = `deployments/${network}-${Date.now()}.json`;
+  const deploymentFile = `deployments/${networkName}-${Date.now()}.json`;
   fs.mkdirSync('deployments', { recursive: true });
   fs.writeFileSync(deploymentFile, JSON.stringify(deployment, null, 2));
   console.log(`\n💾 Deployment info saved to: ${deploymentFile}`);

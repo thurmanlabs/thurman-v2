@@ -11,10 +11,10 @@
     "test:basic": "hardhat test test/basic-setup.test.ts",
     "test:user-flow": "hardhat test test/user-flow.test.ts",
     "deploy": "ts-node scripts/deploy-to-network.ts",
-    "deploy:hardhat": "hardhat run scripts/deploy.ts hardhat --network hardhat",
-    "deploy:baseSepolia": "hardhat run scripts/deploy.ts baseSepolia --network baseSepolia",
-    "deploy:base": "hardhat run scripts/deploy.ts base --network base",
-    "deploy:mainnet": "hardhat run scripts/deploy.ts mainnet --network mainnet"
+    "deploy:hardhat": "hardhat run scripts/deploy.ts --network hardhat",
+    "deploy:baseSepolia": "hardhat run scripts/deploy.ts --network baseSepolia",
+    "deploy:base": "hardhat run scripts/deploy.ts --network base",
+    "deploy:mainnet": "hardhat run scripts/deploy.ts --network mainnet"
   },
   "keywords": [],
   "author": "",

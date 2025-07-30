@@ -23,7 +23,7 @@ if (!network) {
   
   console.log("\n📖 Usage:");
   console.log("  npm run deploy <network>");
-  console.log("  npx hardhat run scripts/deploy.ts <network> --network <network>");
+  console.log("  npx hardhat run scripts/deploy.ts --network <network>");
   console.log("\n💡 Examples:");
   console.log("  npm run deploy baseSepolia");
   console.log("  npm run deploy base");
@@ -80,8 +80,8 @@ if (network === 'mainnet' || network === 'base') {
 }
 
 function runDeployment() {
-  // Run the deployment script with network as argument
-  const child = spawn('npx', ['hardhat', 'run', 'scripts/deploy.ts', network, '--network', network], {
+  // Run the deployment script with network flag only
+  const child = spawn('npx', ['hardhat', 'run', 'scripts/deploy.ts', '--network', network], {
     stdio: 'inherit',
     shell: true
   });
