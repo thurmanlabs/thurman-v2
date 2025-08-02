@@ -45,26 +45,33 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         _disableInitializers();
     }
 
+    address private _asset;
+
     function initialize(
-        address _asset,
+        address _assetAddress,
         address _share,
         address _dToken,
         address _poolManager,
         address _loanManager
     ) external initializer {
         __ERC20_init("ERC7540Vault", "ERC7540");
-        __ERC4626_init(IERC20(_asset));
-        require(_asset != address(0), "ERC7540Vault/invalid-asset");
+        __ERC4626_init(IERC20(_assetAddress));
+        require(_assetAddress != address(0), "ERC7540Vault/invalid-asset");
         require(_share != address(0), "ERC7540Vault/invalid-share");
         require(_dToken != address(0), "ERC7540Vault/invalid-dToken");
         require(_poolManager != address(0), "ERC7540Vault/invalid-manager");
         require(_loanManager != address(0), "ERC7540Vault/invalid-loan-manager");
+        _asset = _assetAddress;
         share = _share; 
         dToken = _dToken;
         poolManager = _poolManager;
         poolId = IPoolManager(_poolManager).getPoolCount();
         loanManager = _loanManager;
-        assetDecimals = IERC20Metadata(_asset).decimals();
+        assetDecimals = IERC20Metadata(_assetAddress).decimals();
+    }
+
+    function asset() public view override(ERC4626Upgradeable, IERC4626) returns (address) {
+        return _asset;
     }
     
     // --- ERC-7540 methods ---

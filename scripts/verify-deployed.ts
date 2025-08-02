@@ -20,27 +20,17 @@ async function main() {
     // vault: "0x...",
   };
 
-  // Add your constructor arguments here
-  const constructorArgs: Record<string, any[]> = {
-    // Example - replace with your actual constructor arguments
-    // originatorRegistry: ["0x...", "0x..."], // [deployer, USDC]
-    // loanManager: [],
-    // poolManager: [],
-    // sToken: ["0x...", "0x...", "Thurman USDC Shares", "sUSDC"], // [poolManager, treasury, name, symbol]
-    // dToken: ["0x...", "Thurman USDC Debt", "dUSDC"], // [poolManager, name, symbol]
-    // vault: ["0x...", "0x...", "0x...", "0x...", "0x..."], // [USDC, sToken, dToken, poolManager, loanManager]
-  };
+
 
   console.log("=== Verifying Deployed Contracts ===");
   console.log("Network:", network);
 
   for (const [contractName, address] of Object.entries(deployedContracts)) {
-    const args = constructorArgs[contractName as keyof typeof constructorArgs];
-    if (address && args) {
+    if (address) {
       console.log(`\nVerifying ${contractName}...`);
-      await verifyProxy(address, args as any[]);
+      await verifyProxy(address);
     } else {
-      console.log(`\n⚠️  Skipping ${contractName} - missing address or constructor args`);
+      console.log(`\n⚠️  Skipping ${contractName} - missing address`);
     }
   }
 

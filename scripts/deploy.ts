@@ -115,18 +115,100 @@ async function main() {
 
   // 7. Configure initial pool
   console.log("\n7️⃣ Configuring initial pool...");
+  console.log("🔍 Vault address:", vaultAddress);
+  console.log("🔍 Originator registry address:", originatorRegistryAddress);
+  console.log("🔍 Margin fee:", ethers.parseEther(config.poolSettings.marginFee));
+
+  // Debug: Check PoolManager state
+  console.log("🔍 PoolManager owner:", await poolManager.owner());
+  console.log("🔍 PoolManager pool count:", await poolManager.getPoolCount());
+  console.log("🔍 Deployer address:", deployer.address);
+
+  // Debug: Test vault.asset() call with retry
+  let assetAddress: string | null = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      console.log(`🔍 Testing vault.asset() call (attempt ${attempt}/3)...`);
+      const vaultContract = await ethers.getContractAt("IERC7540Vault", vaultAddress);
+      assetAddress = await vaultContract.asset();
+      console.log("🔍 Vault asset address:", assetAddress);
+      break; // Success, exit retry loop
+    } catch (error) {
+      console.log(`❌ vault.asset() call failed (attempt ${attempt}/3):`, error);
+      if (attempt < 3) {
+        console.log("⏳ Waiting 2 seconds before retry...");
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+  }
+  
+  if (!assetAddress) {
+    console.log("❌ WARNING: vault.asset() call failed after 3 attempts. This might cause issues.");
+  }
+
   const marginFee = ethers.parseEther(config.poolSettings.marginFee);
-  await poolManager.addPool(
-    vaultAddress,
-    originatorRegistryAddress,
-    marginFee
-  );
-  console.log(`   ✅ Pool added with ${config.poolSettings.marginFee} margin fee`);
+  
+  // Try addPool with retry mechanism
+  let addPoolSuccess = false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      console.log(`🔍 About to call addPool (attempt ${attempt}/3)...`);
+      const addPoolTx = await poolManager.addPool(
+        vaultAddress,
+        originatorRegistryAddress,
+        marginFee
+      );
+      console.log("🔍 addPool transaction sent, waiting for confirmation...");
+      await addPoolTx.wait(1); // Wait for 1 confirmation
+      console.log(`   ✅ Pool added with ${config.poolSettings.marginFee} margin fee`);
+      
+      // Wait a bit longer for state to settle
+      console.log("⏳ Waiting 3 seconds for state to settle...");
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      addPoolSuccess = true;
+      break; // Success, exit retry loop
+    } catch (error) {
+      console.log(`❌ addPool failed (attempt ${attempt}/3):`, error);
+      if (attempt < 3) {
+        console.log("⏳ Waiting 5 seconds before retry...");
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      } else {
+        throw error; // Re-throw on final attempt
+      }
+    }
+  }
+
+  const poolCountAfter = await poolManager.getPoolCount();
+  console.log("🔍 Pool count after addPool:", poolCountAfter);
+  
+  if (poolCountAfter === 0n) {
+    console.log("❌ WARNING: Pool count is still 0 after addPool! This means the pool wasn't actually added.");
+    throw new Error("Pool was not added successfully");
+  }
+  
+  // Debug: Check pool data in detail
+  const poolData = await poolManager.getPool(0);
+  console.log("🔍 Pool data details:");
+  console.log("  - config.depositsEnabled:", poolData.config.depositsEnabled);
+  console.log("  - config.withdrawalsEnabled:", poolData.config.withdrawalsEnabled);
+  console.log("  - config.borrowingEnabled:", poolData.config.borrowingEnabled);
+  console.log("  - config.isPaused:", poolData.config.isPaused);
+  console.log("  - vault:", poolData.vault);
+  console.log("  - originatorRegistry:", poolData.originatorRegistry);
+  console.log("  - marginFee:", poolData.marginFee);
+
+  // Debug: Check if we can access the pools mapping directly
+  try {
+    const directPoolData = await poolManager._pools(0);
+    console.log("🔍 Direct _pools(0) access:", directPoolData);
+  } catch (error) {
+    console.log("❌ Direct _pools access failed:", error);
+  }
 
   // 8. Configure pool operational settings
   console.log("\n8️⃣ Configuring pool operational settings...");
   const poolId = 0; // First pool
-  await poolManager.setPoolOperationalSettings(
+  const setSettingsTx = await poolManager.setPoolOperationalSettings(
     poolId,
     config.poolSettings.depositsEnabled,
     config.poolSettings.withdrawalsEnabled,
@@ -136,11 +218,13 @@ async function main() {
     ethers.parseUnits(config.poolSettings.minDepositAmount, config.decimals.USDC),
     ethers.parseUnits(config.poolSettings.depositCap, config.decimals.USDC)
   );
+  await setSettingsTx.wait(1); // Wait for 1 confirmation
   console.log(`   ✅ Pool operational settings configured`);
 
   // 9. Grant ACCRUER_ROLE to PoolManager in OriginatorRegistry
   console.log("\n9️⃣ Setting up permissions...");
-  await originatorRegistry.grantRole(await originatorRegistry.ACCRUER_ROLE(), poolManagerAddress);
+  const grantRoleTx = await originatorRegistry.grantRole(await originatorRegistry.ACCRUER_ROLE(), poolManagerAddress);
+  await grantRoleTx.wait(1); // Wait for 1 confirmation
   console.log(`   ✅ ACCRUER_ROLE granted to PoolManager`);
 
   // Check if we should verify contracts based on network type
@@ -155,40 +239,22 @@ async function main() {
     
     try {
       console.log("\n📋 Verifying OriginatorRegistry...");
-      await verifyProxy(originatorRegistryAddress, [
-        adminAddress,
-        config.tokens.USDC
-      ]);
+      await verifyProxy(originatorRegistryAddress);
 
       console.log("\n📋 Verifying LoanManager...");
-      await verifyProxy(loanManagerAddress, []);
+      await verifyProxy(loanManagerAddress);
 
       console.log("\n📋 Verifying PoolManager...");
-      await verifyProxy(poolManagerAddress, []);
+      await verifyProxy(poolManagerAddress);
 
       console.log("\n📋 Verifying SToken...");
-      await verifyProxy(sTokenAddress, [
-        poolManagerAddress,
-        treasuryAddress,
-        config.tokenNames.sTokenName,
-        config.tokenNames.sTokenSymbol
-      ]);
+      await verifyProxy(sTokenAddress);
 
       console.log("\n📋 Verifying DToken...");
-      await verifyProxy(dTokenAddress, [
-        poolManagerAddress,
-        config.tokenNames.dTokenName,
-        config.tokenNames.dTokenSymbol
-      ]);
+      await verifyProxy(dTokenAddress);
 
       console.log("\n📋 Verifying ERC7540Vault...");
-      await verifyProxy(vaultAddress, [
-        config.tokens.USDC,
-        sTokenAddress,
-        dTokenAddress, 
-        poolManagerAddress,
-        loanManagerAddress
-      ]);
+      await verifyProxy(vaultAddress);
 
       console.log("\n✅ All contracts verified successfully!");
     } catch (error) {

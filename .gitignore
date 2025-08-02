@@ -18,6 +18,7 @@ artifacts
 
 # Deployment files
 deployments/
+.openzeppelin/
 
 # Documentation
 docs/
