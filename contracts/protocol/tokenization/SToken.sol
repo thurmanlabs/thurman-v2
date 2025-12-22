@@ -32,6 +32,9 @@ contract SToken is ISToken, ERC20Upgradeable {
     // User index snapshots
     mapping(address => uint256) public userIndexes;
 
+    // Reserve storage slots for future upgrades
+    uint256[45] private __gap;
+
     /// @custom:oz-upgrades-unsafe-allow constructor
  	constructor() {
  	    _disableInitializers();
