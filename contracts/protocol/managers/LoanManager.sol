@@ -10,7 +10,6 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {LoanMath} from "../libraries/math/LoanMath.sol";
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import "hardhat/console.sol";
 
 contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
     using WadRayMath for uint256;

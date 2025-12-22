@@ -143,7 +143,7 @@ contract PoolManager is Initializable, OwnableUpgradeable, PoolManagerStorage, I
     ) external {
         Loan.batchRepayLoan(_pools, poolId, repayments, originator);
     }
-    function mintToTreasury(uint16 poolId, uint256 amount) external {
+    function mintToTreasury(uint16 poolId, uint256 amount) external onlyOwner {
         Pool.mintToTreasury(_pools, poolId, amount);
     }
 

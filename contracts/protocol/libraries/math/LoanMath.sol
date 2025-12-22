@@ -4,7 +4,6 @@ pragma solidity ^0.8.24;
 import {WadRayMath} from "./WadRayMath.sol";
 import {MathUtils} from "./MathUtils.sol";
 import {Types} from "../types/Types.sol";
-import "hardhat/console.sol";
 
 library LoanMath {
     using WadRayMath for uint256;
