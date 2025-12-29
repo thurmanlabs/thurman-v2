@@ -10,7 +10,7 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {LoanMath} from "../libraries/math/LoanMath.sol";
 import {WadRayMath} from "../libraries/math/WadRayMath.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import "hardhat/console.sol";
+import {DateTime} from "@quant-finance/solidity-datetime/contracts/DateTime.sol";
 
 contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
     using WadRayMath for uint256;
@@ -40,12 +40,15 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
             termMonths
         );
         
+        // Calculate first payment date as same calendar day next month
+        uint256 firstPaymentDate = DateTime.addMonths(block.timestamp, 1);
+        
         loan = Types.Loan({
             id: uint96(loanId),
             principal: uint128(principal),
             interestRate: uint128(interestRate),
             termMonths: termMonths,
-            nextPaymentDate: uint40(block.timestamp + 30 days),
+            nextPaymentDate: uint40(firstPaymentDate),
             remainingMonthlyPayment: uint128(payment),
             currentPaymentIndex: 0,
             status: Types.Status.Active,
@@ -97,7 +100,7 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
             // Full or excess payment - reset monthly payment and advance next payment date
             loan.remainingMonthlyPayment = 0;
             loan.nextPaymentDate = uint40(
-                loan.nextPaymentDate + _calculateDaysToNextPayment(loan.nextPaymentDate) * 1 days
+                _getNextPaymentDate(loan.nextPaymentDate)
             );
             loan.currentPaymentIndex++;
         } else {
@@ -119,63 +122,15 @@ contract LoanManager is Initializable, OwnableUpgradeable, ILoanManager {
     }
 
     /**
-    * @notice Calculate how many days until the next payment date
-    * @param nextPaymentDate The current next payment date timestamp
-    * @return days The number of days until next payment
+    * @notice Calculate the next payment date using calendar-month arithmetic
+    * @dev Uses BokkyPooBahsDateTimeLibrary for proper date handling.
+    *      This ensures payments fall on the same calendar day each month,
+    *      which is standard for CDFI and traditional bank loans.
+    *      Example: Jan 15 -> Feb 15 -> Mar 15 (handles month-end correctly)
+    * @param currentPaymentDate The current payment date timestamp
+    * @return nextPaymentDate The timestamp for the next payment (same calendar day, next month)
     */
-    function _calculateDaysToNextPayment(uint40 nextPaymentDate) internal view returns (uint256) {
-        // If payment date is in the past, use standard 30 days
-        if (nextPaymentDate <= block.timestamp) {
-            return 30;
-        }
-        
-        // Get current date components
-        uint256 currentYear = block.timestamp / (365 days);
-        uint256 currentMonth = (block.timestamp % (365 days)) / (30 days);
-        
-        // Calculate days in the current month (simplified version)
-        uint8[12] memory daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-        
-        // Adjust February for leap years
-        if (currentMonth == 1 && _isLeapYear(currentYear)) {
-            daysInMonth[1] = 29;
-        }
-        
-        return daysInMonth[currentMonth];
-    }
-
-    /**
-    * @notice Check if a year is a leap year
-    * @param year The year to check
-    * @return True if leap year
-    */
-    function _isLeapYear(uint256 year) internal pure returns (bool) {
-        return (year % 4 == 0) && ((year % 100 != 0) || (year % 400 == 0));
-    }
-
-    /**
-    * @notice Calculate the amount to repay to Aave
-    * @param principalPortion Principal being repaid
-    * @param balanceIncrease Interest accrued from Aave's variable rate
-    * @param currentAaveBalance Current balance owed to Aave
-    * @return The amount to repay to Aave
-    */
-    function _calculateAaveRepaymentAmount(
-        uint256 principalPortion,
-        uint256 balanceIncrease,
-        uint256 currentAaveBalance
-    ) internal pure returns (uint256) {
-        // Always repay accrued interest to Aave
-        uint256 aavePaymentAmount = balanceIncrease;
-        
-        // Add principal payment
-        aavePaymentAmount += principalPortion;
-        
-        // Ensure we don't try to repay more than owed to Aave
-        if (aavePaymentAmount > currentAaveBalance + balanceIncrease) {
-            aavePaymentAmount = currentAaveBalance + balanceIncrease;
-        }
-        
-        return aavePaymentAmount;
+    function _getNextPaymentDate(uint40 currentPaymentDate) internal pure returns (uint256) {
+        return DateTime.addMonths(currentPaymentDate, 1);
     }
 }

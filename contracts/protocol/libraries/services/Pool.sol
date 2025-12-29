@@ -107,17 +107,18 @@ library Pool {
         uint16 poolId,
         uint256 amount
     ) internal {
-        Types.Pool memory pool = getPool(pools, poolId);
+        Types.Pool storage pool = pools[poolId];  // Use storage, not memory
         IERC7540Vault vault = IERC7540Vault(pool.vault);
         ISToken sToken = ISToken(vault.getShare());
 
         require(amount > 0, "Pool/invalid-mint-amount");
         
-        if (pool.accruedToTreasury != 0) {
-            pool.accruedToTreasury = 0;
-            sToken.mintToTreasury(pool.accruedToTreasury);   
+        uint256 amountToMint = pool.accruedToTreasury;
+        if (amountToMint != 0) {
+            pool.accruedToTreasury = 0;              // Zero after saving
+            sToken.mintToTreasury(amountToMint);     // Mint saved amount
             
-            emit MintedToTreasury(poolId, pool.accruedToTreasury);
+            emit MintedToTreasury(poolId, amountToMint);
         }
     }
 

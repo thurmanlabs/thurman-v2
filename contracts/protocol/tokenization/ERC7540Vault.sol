@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {ERC4626Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IPoolManager} from "../../interfaces/IPoolManager.sol";
@@ -17,7 +18,7 @@ import {WadRayMath} from "../libraries/math/WadRayMath.sol";
 import {MathUtils} from "../libraries/math/MathUtils.sol";
 import {LoanMath} from "../libraries/math/LoanMath.sol";
 
-contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
+contract ERC7540Vault is ERC4626Upgradeable, ReentrancyGuardUpgradeable, IERC7540Vault {
     using WadRayMath for uint256;
     using SafeCast for uint256;
 
@@ -56,6 +57,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     ) external initializer {
         __ERC20_init("ERC7540Vault", "ERC7540");
         __ERC4626_init(IERC20(_assetAddress));
+        __ReentrancyGuard_init();
         require(_assetAddress != address(0), "ERC7540Vault/invalid-asset");
         require(_share != address(0), "ERC7540Vault/invalid-share");
         require(_dToken != address(0), "ERC7540Vault/invalid-dToken");
@@ -252,7 +254,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
         address caller,
         address onBehalfOf,
         uint256 loanId
-    ) external onlyPoolManager returns (uint256 interestPaid, uint256 interestRate) {
+    ) external onlyPoolManager nonReentrant returns (uint256 interestPaid, uint256 interestRate) {
         Types.Loan storage loan = loans[onBehalfOf][loanId];
         require(loan.status == Types.Status.Active, "ERC7540Vault/loan-not-active");
 
@@ -281,7 +283,7 @@ contract ERC7540Vault is ERC4626Upgradeable, IERC7540Vault {
     function batchRepayLoans(
         Types.BatchRepaymentData[] calldata repayments,
         address originator
-    ) external onlyPoolManager returns (uint256 totalInterestPaid) {
+    ) external onlyPoolManager nonReentrant returns (uint256 totalInterestPaid) {
         uint256 totalRepayment = 0;
         uint256 totalInterestPortion = 0;
         uint256 totalPrincipalPortion = 0;
